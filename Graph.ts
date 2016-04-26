@@ -62,14 +62,16 @@ function aStarSearch<Node> (
     // A dummy search result: it just picks the first possible neighbour
     var result : SearchResult<Node> = 
 	{
-        path: [start],
+        path: [],
         cost: 0
     };
 
     var fScore = new collections.Dictionary<Node, number>();
     var gScore = new collections.Dictionary<Node, number>();
+    // this dictionary keeps track of the best path's currently travelled
     var cameFrom = new collections.LinkedDictionary<Node, Node>();
 
+    // we send in a compare function to prioritize in a correct manner
     var openList = new collections.PriorityQueue<Node>(function(a, b){
         var c1 = fScore.getValue(a),
             c2 = fScore.getValue(b);
@@ -82,6 +84,9 @@ function aStarSearch<Node> (
         return 0;
     });
 
+    // We add these primarily for the .contains() call to work as expected
+    // maybe a dictionary would be better here so we get an O(1) complexity instead when calling contains()
+    var frontier = new collections.Set<Node>();
 	var explored = new collections.Set<Node>();
     
 	// Add start node
@@ -92,20 +97,26 @@ function aStarSearch<Node> (
 	while(!openList.isEmpty())
 	{
         var current = openList.dequeue();
+        frontier.remove(current);
         explored.add(current);
 
         if(goal(current)) {
             result.cost = gScore.getValue(current);
 
+            result.path.unshift(current);
             var cf = cameFrom.getValue(current);
             var hasNext:boolean = true;
 
             while(hasNext){
-                result.path.push(cf);
+                // fugly code...
+                result.path.unshift(cf);
                 if(cameFrom.containsKey(cf))
                     cf = cameFrom.getValue(cf);
                 else hasNext = false;
             }
+
+            // cool dudes make stupid hacks.. apparently we do not expect the start node as a part of the path!
+            result.path.shift();
 
             break;
         }
@@ -122,9 +133,12 @@ function aStarSearch<Node> (
             if(gScore.containsKey(current)){
                 var tempCost:number = edges[i].cost + gScore.getValue(current);
             }
-            else var tempCost:number = 9999999999999999;
+            // According to splendid sources an unknown gScore should equal to infinity, since we are not Buzz Lightyear
+            // we pause and reflect on our life choices...
+            //else var tempCost:number = 9999999999999999;
 
-            if(!(openList.contains(child))){
+            if(!(frontier.contains(child))){
+                frontier.add(child);
                 openList.enqueue(child);
             }
             else if (tempCost >= gScore.getValue(child)) {
@@ -235,31 +249,4 @@ class GridGraph implements Graph<GridNode> {
         str += borderRow + "\n";
         return str;
     }
-}
-
-
-////////////////////////////////////////////////////////////////////////////7
-
-function getNodeWithLowest(){
-    /*var node;
-    for(var key in fScore) {
-        if(key.isPrototypeOf(fScore)){
-            if(node !== undefined && fScore[key] < fScore[node]){
-                node = key;
-            }
-        }
-    }*/
-    /*
-    var searched = arr[0];
-
-    for(var i = 1; i < arr.length; i++) {
-        var current =  arr[i];
-        if(fScore[current] < fScore[searched]){
-            searched = current;
-        }
-    }
-
-    arr.remove(arr.indexOf(searched));
-    return searched;
-    */
 }
