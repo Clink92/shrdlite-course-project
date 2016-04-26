@@ -1,8 +1,6 @@
 ///<reference path="lib/collections.ts"/>
 ///<reference path="lib/node.d.ts"/>
 
-const Collections = require('typescript-collections');
-
 /** Graph module
 *
 *  Types for generic A\* implementation.
@@ -12,6 +10,7 @@ const Collections = require('typescript-collections');
 *  else should be used as-is.
 */
 
+import copy = collections.arrays.copy;
 /** An edge in a graph. */
 class Edge<Node> {
     from : Node;
@@ -34,6 +33,7 @@ class SearchResult<Node> {
     /** The total cost of the path. */
     cost : number;
 }
+
 
 /**
 * A\* search implementation, parameterised by a `Node` type. The code
@@ -64,17 +64,70 @@ function aStarSearch<Node> (
         path: [start],
         cost: 0
     };
-	
-	var openList = new Collections.Queue();
-	var closedList = new Collections.Queue();
-	
+
+    var fScore = new collections.Dictionary();
+    var gScore = new collections.Dictionary();
+
+    var openList = new collections.PriorityQueue<Node>(function(a, b){
+        var c1 = fScore.getValue(a),
+            c2 = fScore.getValue(b);
+
+        if(c1 < c2)
+            return 1;
+        else if(c1 > c2)
+            return -1;
+        return 0;
+    });
+
+	var closedList = new collections.Queue<Node>();
+    
 	// Add start node
+    gScore.setValue(start, 0);
+    fScore.setValue(start, heuristics(start));
 	openList.enqueue(start);
-	
-	while(openList.size() != 0)
+
+
+	while(!openList.isEmpty())
 	{
-		console.log("blaah!");
-		openList.dequeue();
+        var current = openList.dequeue();
+        closedList.add(current);
+
+        if(goal(current)) {
+            return result;
+        }
+
+        var edges :Edge<Node>[] = graph.outgoingEdges(current);
+
+        edges.forEach(function(edge: Edge<Node>) {
+            var child = edge.to;
+
+            if(closedList.contains(child)){
+                return;
+            }
+
+            var tempCost:number = edge.cost;
+            if(gScore.containsKey(current)){
+                var value = parseInt(gScore.getValue(current).toString());
+                tempCost += value;
+            } else {
+                tempCost = 9999999999999999999;
+            }
+
+
+            if(!(openList.contains(child))){
+                openList.enqueue(child);
+            }
+            else if (tempCost >= gScore.getValue(child)) {
+                // if the cost of this path is more then the old one we continue to other children
+                return;
+            }
+
+            result.path.push(current);
+            result.cost = tempCost;
+            gScore.setValue(child, tempCost);
+            var score:number = tempCost + heuristics(child);
+            fScore.setValue(child, score);
+        });
 	}
 	
 	/*var edges : int = graph.outgoingEdges(start).size;
@@ -188,4 +241,31 @@ class GridGraph implements Graph<GridNode> {
         str += borderRow + "\n";
         return str;
     }
+}
+
+
+////////////////////////////////////////////////////////////////////////////7
+
+function getNodeWithLowest(){
+    /*var node;
+    for(var key in fScore) {
+        if(key.isPrototypeOf(fScore)){
+            if(node !== undefined && fScore[key] < fScore[node]){
+                node = key;
+            }
+        }
+    }*/
+    /*
+    var searched = arr[0];
+
+    for(var i = 1; i < arr.length; i++) {
+        var current =  arr[i];
+        if(fScore[current] < fScore[searched]){
+            searched = current;
+        }
+    }
+
+    arr.remove(arr.indexOf(searched));
+    return searched;
+    */
 }
