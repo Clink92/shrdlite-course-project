@@ -11,6 +11,7 @@
 */
 
 import copy = collections.arrays.copy;
+import isUndefined = collections.isUndefined;
 /** An edge in a graph. */
 class Edge<Node> {
     from : Node;
@@ -65,13 +66,15 @@ function aStarSearch<Node> (
         cost: 0
     };
 
-    var fScore = new collections.Dictionary();
-    var gScore = new collections.Dictionary();
+    var fScore = new collections.Dictionary<Node, number>();
+    var gScore = new collections.Dictionary<Node, number>();
+    var cameFrom = new collections.LinkedDictionary<Node, Node>();
 
     var openList = new collections.PriorityQueue<Node>(function(a, b){
         var c1 = fScore.getValue(a),
             c2 = fScore.getValue(b);
 
+        // if the cost of a is less then b we prioritize it higher
         if(c1 < c2)
             return 1;
         else if(c1 > c2)
@@ -79,72 +82,63 @@ function aStarSearch<Node> (
         return 0;
     });
 
-	var closedList = new collections.Queue<Node>();
+	var explored = new collections.Set<Node>();
     
 	// Add start node
     gScore.setValue(start, 0);
     fScore.setValue(start, heuristics(start));
 	openList.enqueue(start);
 
-
 	while(!openList.isEmpty())
 	{
         var current = openList.dequeue();
-        closedList.add(current);
+        explored.add(current);
 
         if(goal(current)) {
-            return result;
+            result.cost = gScore.getValue(current);
+
+            var cf = cameFrom.getValue(current);
+            var hasNext:boolean = true;
+
+            while(hasNext){
+                result.path.push(cf);
+                if(cameFrom.containsKey(cf))
+                    cf = cameFrom.getValue(cf);
+                else hasNext = false;
+            }
+
+            break;
         }
 
         var edges :Edge<Node>[] = graph.outgoingEdges(current);
 
-        edges.forEach(function(edge: Edge<Node>) {
-            var child = edge.to;
+        for(var i:number = 0; i < edges.length; i++){
+            var child:Node = edges[i].to;
 
-            if(closedList.contains(child)){
-                return;
+            if(explored.contains(child)){
+                continue;
             }
 
-            var tempCost:number = edge.cost;
             if(gScore.containsKey(current)){
-                var value = parseInt(gScore.getValue(current).toString());
-                tempCost += value;
-            } else {
-                tempCost = 9999999999999999999;
+                var tempCost:number = edges[i].cost + gScore.getValue(current);
             }
-
+            else var tempCost:number = 9999999999999999;
 
             if(!(openList.contains(child))){
                 openList.enqueue(child);
             }
             else if (tempCost >= gScore.getValue(child)) {
                 // if the cost of this path is more then the old one we continue to other children
-                return;
+                continue;
             }
 
-            result.path.push(current);
-            result.cost = tempCost;
+            cameFrom.setValue(child, current);
             gScore.setValue(child, tempCost);
-            var score:number = tempCost + heuristics(child);
-            fScore.setValue(child, score);
-        });
-	}
-	
-	/*var edges : int = graph.outgoingEdges(start).size;
-	
-	while()
-		// add node to queue
-		 graph.outgoingEdges(start)[i]
-		
-	}*/
-	
-	/*var edge : Edge<Node> = graph.outgoingEdges(start) [0];
-	if (! edge) break;
-	start = edge.to;
-	result.path.push(start);
-	result.cost += edge.cost;*/
+            fScore.setValue(child, (tempCost + heuristics(child)));
+        }
 
-	
+	}
+
     return result;
 }
 
