@@ -1,0 +1,26 @@
+{
+  "name": "fkkyeah",
+  "version": "1.0.0",
+  "description": "cool",
+  "main": "Test.js",
+  "directories": {
+    "doc": "doc"
+  },
+  "dependencies": {
+    "typescript-collections": "^1.1.2"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Clink92/shrdlite-course-project.git"
+  },
+  "author": "cool dude",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Clink92/shrdlite-course-project/issues"
+  },
+  "homepage": "https://github.com/Clink92/shrdlite-course-project#readme"
+}

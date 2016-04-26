@@ -1,6 +1,8 @@
 ///<reference path="lib/collections.ts"/>
 ///<reference path="lib/node.d.ts"/>
 
+const Collections = require('typescript-collections');
+
 /** Graph module
 *
 *  Types for generic A\* implementation.
@@ -54,21 +56,46 @@ function aStarSearch<Node> (
     goal : (n:Node) => boolean,
     heuristics : (n:Node) => number,
     timeout : number
-) : SearchResult<Node> {
+) : SearchResult<Node> 
+{
     // A dummy search result: it just picks the first possible neighbour
-    var result : SearchResult<Node> = {
+    var result : SearchResult<Node> = 
+	{
         path: [start],
         cost: 0
     };
-    while (result.path.length < 3) {
-        var edge : Edge<Node> = graph.outgoingEdges(start) [0];
-        if (! edge) break;
-        start = edge.to;
-        result.path.push(start);
-        result.cost += edge.cost;
-    }
+	
+	var openList = new Collections.Queue();
+	var closedList = new Collections.Queue();
+	
+	// Add start node
+	openList.enqueue(start);
+	
+	while(openList.size() != 0)
+	{
+		console.log("blaah!");
+		openList.dequeue();
+	}
+	
+	/*var edges : int = graph.outgoingEdges(start).size;
+	
+	while()
+		// add node to queue
+		 graph.outgoingEdges(start)[i]
+		
+	}*/
+	
+	/*var edge : Edge<Node> = graph.outgoingEdges(start) [0];
+	if (! edge) break;
+	start = edge.to;
+	result.path.push(start);
+	result.cost += edge.cost;*/
+
+	
     return result;
 }
+
+
 
 
 //////////////////////////////////////////////////////////////////////
