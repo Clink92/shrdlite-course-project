@@ -92,11 +92,12 @@ function aStarSearch<Node> (
 	// Add start node
     gScore.setValue(start, 0);
     fScore.setValue(start, heuristics(start));
-	openList.enqueue(start);
+    openList.enqueue(start);
 
-	while(!openList.isEmpty())
-	{
+    while(!openList.isEmpty())
+    {
         var current = openList.dequeue();
+
         frontier.remove(current);
         explored.add(current);
 
@@ -132,13 +133,15 @@ function aStarSearch<Node> (
                 continue;
             }
 
-            if(gScore.containsKey(current)){
+            // Andreas: Remove this if-statement? Don't see why it is needed. Just do the calculation.
+            //if(gScore.containsKey(current)){
                 var tempCost:number = edges[i].cost + gScore.getValue(current);
-            }
+            //}
+
             // According to splendid sources an unknown gScore should equal to infinity, since we are not Buzz Lightyear
             // we pause and reflect on our life choices...
             //else var tempCost:number = 9999999999999999;
-
+            
             if(!(frontier.contains(child))){
                 frontier.add(child);
                 openList.enqueue(child);
@@ -157,7 +160,6 @@ function aStarSearch<Node> (
 
     return result;
 }
-
 
 
 
