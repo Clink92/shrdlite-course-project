@@ -106,7 +106,7 @@ function aStarSearch<Node> (
             var hasNext:boolean = true;
             
             while(hasNext){
-                // fugly code...
+                // Andreas: Simplified this reconstruction of the path
                 result.path.unshift(cf);
                 hasNext = cameFrom.containsKey(cf);
                 if(hasNext)
