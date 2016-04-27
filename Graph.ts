@@ -101,22 +101,24 @@ function aStarSearch<Node> (
         explored.add(current);
 
         if(goal(current)) {
-            result.cost = gScore.getValue(current);
-
-            result.path.unshift(current);
-            var cf = cameFrom.getValue(current);
+            // Goal found, reconstruct the path
+            var cf = current;
             var hasNext:boolean = true;
-
+            
             while(hasNext){
                 // fugly code...
                 result.path.unshift(cf);
-                if(cameFrom.containsKey(cf))
+                hasNext = cameFrom.containsKey(cf);
+                if(hasNext)
                     cf = cameFrom.getValue(cf);
-                else hasNext = false;
             }
 
             // cool dudes make stupid hacks.. apparently we do not expect the start node as a part of the path!
-            result.path.shift();
+            // Andreas: Why? It passes the tests without this
+            //result.path.shift();
+
+            // Set the final path cost
+            result.cost = gScore.getValue(current);
 
             break;
         }
