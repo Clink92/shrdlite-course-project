@@ -12,6 +12,7 @@
 
 import copy = collections.arrays.copy;
 import isUndefined = collections.isUndefined;
+//import {child} from "cluster";
 /** An edge in a graph. */
 class Edge<Node> {
     from : Node;
@@ -77,10 +78,13 @@ function aStarSearch<Node> (
             c2 = fScore.getValue(b);
 
         // if the cost of a is less then b we prioritize it higher
-        if(c1 < c2)
+        if(c1 < c2){
             return 1;
-        else if(c1 > c2)
+        }
+        else if(c1 > c2){
             return -1;
+        }
+
         return 0;
     });
 
@@ -104,19 +108,10 @@ function aStarSearch<Node> (
         if(goal(current)) {
             // Goal found, reconstruct the path
             var cf = current;
-            var hasNext:boolean = true;
-            
-            while(hasNext){
-                // Andreas: Simplified this reconstruction of the path
+            while(cameFrom.containsKey(cf)){
                 result.path.unshift(cf);
-                hasNext = cameFrom.containsKey(cf);
-                if(hasNext)
-                    cf = cameFrom.getValue(cf);
+                cf = cameFrom.getValue(cf);
             }
-
-            // cool dudes make stupid hacks.. apparently we do not expect the start node as a part of the path!
-            // Andreas: Why? It passes the tests without this
-            //result.path.shift();
 
             // Set the final path cost
             result.cost = gScore.getValue(current);
@@ -124,7 +119,9 @@ function aStarSearch<Node> (
             break;
         }
 
+
         var edges :Edge<Node>[] = graph.outgoingEdges(current);
+
 
         for(var i:number = 0; i < edges.length; i++){
             var child:Node = edges[i].to;
@@ -133,27 +130,23 @@ function aStarSearch<Node> (
                 continue;
             }
 
-            // Andreas: Remove this if-statement? Don't see why it is needed. Just do the calculation.
-            //if(gScore.containsKey(current)){
-                var tempCost:number = edges[i].cost + gScore.getValue(current);
-            //}
+            var tempCost:number = edges[i].cost + gScore.getValue(current);
+            var score:number = (tempCost + heuristics(child));
 
-            // According to splendid sources an unknown gScore should equal to infinity, since we are not Buzz Lightyear
-            // we pause and reflect on our life choices...
-            //else var tempCost:number = 9999999999999999;
-            
             if(!(frontier.contains(child))){
                 frontier.add(child);
+                fScore.setValue(child,score);
                 openList.enqueue(child);
             }
             else if (tempCost >= gScore.getValue(child)) {
                 // if the cost of this path is more then the old one we continue to other children
                 continue;
             }
-
+            else fScore.setValue(child,score);
+            
             cameFrom.setValue(child, current);
             gScore.setValue(child, tempCost);
-            fScore.setValue(child, (tempCost + heuristics(child)));
+            
         }
 
 	}
