@@ -1,5 +1,5 @@
-### Team 17 ###
-=====================
+### Team AI Caramba || Fire team: 17 ###
+---
 Group Members:
 
 	* Andreas Mikko
