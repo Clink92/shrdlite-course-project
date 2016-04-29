@@ -59,7 +59,7 @@ function aStarSearch<Node> (
     heuristics : (n:Node) => number,
     timeout : number
 ) : SearchResult<Node> 
-{
+{	
     // A dummy search result: it just picks the first possible neighbour
     var result : SearchResult<Node> = 
 	{
@@ -67,15 +67,17 @@ function aStarSearch<Node> (
         cost: 0
     };
 
-    var fScore = new collections.Dictionary<Node, number>();
-    var gScore = new collections.Dictionary<Node, number>();
+    var fScore : collections.Dictionary<Node, number> = new collections.Dictionary<Node, number>();
+    var gScore : collections.Dictionary<Node, number> = new collections.Dictionary<Node, number>();
+	
     // this dictionary keeps track of the best path's currently travelled
-    var cameFrom = new collections.LinkedDictionary<Node, Node>();
+    var cameFrom : collections.Dictionary<Node, Node>= new collections.Dictionary<Node, Node>();
 
     // we send in a compare function to prioritize in a correct manner
-    var openList = new collections.PriorityQueue<Node>(function(a, b){
-        var c1 = fScore.getValue(a),
-            c2 = fScore.getValue(b);
+    var openList : collections.PriorityQueue<Node> = new collections.PriorityQueue<Node>(function(a : Node, b : Node)
+	{
+        var c1 : number = fScore.getValue(a),
+            c2 : number = fScore.getValue(b);
 
         // if the cost of a is less then b we prioritize it higher
         if(c1 < c2){
@@ -88,6 +90,7 @@ function aStarSearch<Node> (
         return 0;
     });
 
+	
     // We add these primarily for the .contains() call to work as expected
     // maybe a dictionary would be better here so we get an O(1) complexity instead when calling contains()
     var frontier = new collections.Set<Node>();
@@ -100,17 +103,20 @@ function aStarSearch<Node> (
 
     while(!openList.isEmpty())
     {
-        var current = openList.dequeue();
+        var current : Node = openList.dequeue();
 
         frontier.remove(current);
         explored.add(current);
 
-        if(goal(current)) {
+        if(goal(current)) 
+		{
             // Goal found, reconstruct the path
-            var cf = current;
-            while(cameFrom.containsKey(cf)){
-                result.path.unshift(cf);
-                cf = cameFrom.getValue(cf);
+            var node : Node = current;
+			
+            while(cameFrom.containsKey(node))
+			{
+                result.path.unshift(node);
+                node = cameFrom.getValue(node);
             }
 
             // Set the final path cost
@@ -119,34 +125,42 @@ function aStarSearch<Node> (
             break;
         }
 
+		// This holds a node's children
+        var edges : Edge<Node>[] = graph.outgoingEdges(current);
 
-        var edges :Edge<Node>[] = graph.outgoingEdges(current);
+		// Iterate through the node's children 
+        for(var i : number = 0; i < edges.length; i++)
+		{
+            var child : Node = edges[i].to;
 
-
-        for(var i:number = 0; i < edges.length; i++){
-            var child:Node = edges[i].to;
-
-            if(explored.contains(child)){
+			// There is a possibility that there's another way to this node, and if 
+			// this is the case, ignore this node and continue with the next one
+            if(explored.contains(child))
+			{
                 continue;
             }
 
-            var tempCost:number = edges[i].cost + gScore.getValue(current);
-            var score:number = (tempCost + heuristics(child));
+            var tempGScore : number = edges[i].cost + gScore.getValue(current);
+            var tempFScore : number = tempGScore + heuristics(child);
 
-            if(!(frontier.contains(child))){
+            if(!frontier.contains(child))			
+			{
                 frontier.add(child);
-                fScore.setValue(child,score);
+				
+				// NOTE: We have to add the f score to the node before we queue it in the open list
+				// to make sure that it is sorted correctly
+                fScore.setValue(child, tempFScore);
                 openList.enqueue(child);
             }
-            else if (tempCost >= gScore.getValue(child)) {
+            else if (tempGScore >= gScore.getValue(child)) 
+			{
                 // if the cost of this path is more then the old one we continue to other children
                 continue;
             }
-            else fScore.setValue(child,score);
+            else fScore.setValue(child, tempFScore);
             
             cameFrom.setValue(child, current);
-            gScore.setValue(child, tempCost);
-            
+            gScore.setValue(child, tempGScore);            
         }
 
 	}
