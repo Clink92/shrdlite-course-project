@@ -93,8 +93,8 @@ function aStarSearch<Node> (
 	
     // We add these primarily for the .contains() call to work as expected
     // maybe a dictionary would be better here so we get an O(1) complexity instead when calling contains()
-    var frontier = new collections.Set<Node>();
-	var explored = new collections.Set<Node>();
+    var frontier : collections.Set<Node> = new collections.Set<Node>();
+	var explored : collections.Set<Node> = new collections.Set<Node>();
     
 	// Add start node
     gScore.setValue(start, 0);

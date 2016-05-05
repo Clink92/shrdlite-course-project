@@ -2556,7 +2556,7 @@ function aStarSearch(graph, start, goal, heuristics, timeout) {
     var fScore = new collections.Dictionary();
     var gScore = new collections.Dictionary();
     // this dictionary keeps track of the best path's currently travelled
-    var cameFrom = new collections.LinkedDictionary();
+    var cameFrom = new collections.Dictionary();
     // we send in a compare function to prioritize in a correct manner
     var openList = new collections.PriorityQueue(function (a, b) {
         var c1 = fScore.getValue(a), c2 = fScore.getValue(b);
@@ -2583,36 +2583,42 @@ function aStarSearch(graph, start, goal, heuristics, timeout) {
         explored.add(current);
         if (goal(current)) {
             // Goal found, reconstruct the path
-            var cf = current;
-            while (cameFrom.containsKey(cf)) {
-                result.path.unshift(cf);
-                cf = cameFrom.getValue(cf);
+            var node = current;
+            while (cameFrom.containsKey(node)) {
+                result.path.unshift(node);
+                node = cameFrom.getValue(node);
             }
             // Set the final path cost
             result.cost = gScore.getValue(current);
             break;
         }
+        // This holds a node's children
         var edges = graph.outgoingEdges(current);
+        // Iterate through the node's children 
         for (var i = 0; i < edges.length; i++) {
             var child = edges[i].to;
+            // There is a possibility that there's another way to this node, and if 
+            // this is the case, ignore this node and continue with the next one
             if (explored.contains(child)) {
                 continue;
             }
-            var tempCost = edges[i].cost + gScore.getValue(current);
-            var score = (tempCost + heuristics(child));
-            if (!(frontier.contains(child))) {
+            var tempGScore = edges[i].cost + gScore.getValue(current);
+            var tempFScore = tempGScore + heuristics(child);
+            if (!frontier.contains(child)) {
                 frontier.add(child);
-                fScore.setValue(child, score);
+                // NOTE: We have to add the f score to the node before we queue it in the open list
+                // to make sure that it is sorted correctly
+                fScore.setValue(child, tempFScore);
                 openList.enqueue(child);
             }
-            else if (tempCost >= gScore.getValue(child)) {
+            else if (tempGScore >= gScore.getValue(child)) {
                 // if the cost of this path is more then the old one we continue to other children
                 continue;
             }
             else
-                fScore.setValue(child, score);
+                fScore.setValue(child, tempFScore);
             cameFrom.setValue(child, current);
-            gScore.setValue(child, tempCost);
+            gScore.setValue(child, tempGScore);
         }
     }
     return result;

@@ -38,11 +38,17 @@ Top-level function for the Interpreter. It calls `interpretCommand` for each pos
     export function interpret(parses : Parser.ParseResult[], currentState : WorldState) : InterpretationResult[] {
         var errors : Error[] = [];
         var interpretations : InterpretationResult[] = [];
+
+
+        let counter : number = 0;
+
         parses.forEach((parseresult) => {
             try {
+                console.log("DEBUG:", counter);
                 var result : InterpretationResult = <InterpretationResult>parseresult;
                 result.interpretation = interpretCommand(result.parse, currentState);
                 interpretations.push(result);
+                counter++;
             } catch(err) {
                 errors.push(err);
             }
@@ -106,14 +112,76 @@ Top-level function for the Interpreter. It calls `interpretCommand` for each pos
      * @returns A list of list of Literal, representing a formula in disjunctive normal form (disjunction of conjunctions). See the dummy interpetation returned in the code for an example, which means ontop(a,floor) AND holding(b).
      */
     function interpretCommand(cmd : Parser.Command, state : WorldState) : DNFFormula {
+
+        // Note: some parses might not have an interpretation, and some parses might have several interpretations.
+        // Output: a list of logical interpretations
+
+        // Forms: Bricks, planks, balls, pyramids, boxes and tables.
+        // Colors: Red, black, blue, green, yellow, white.
+        // Sizes: Large, small.
+
+        /*
+         The basic commands
+
+         A plan is a sequence of basic commands, and there are only four of them:
+
+         left: Move the arm one step to the left.
+         right: Move the arm one step to the right.
+         pick: Pick up the topmost object in the stack where the arm is.
+         drop: Drop the object that you’re currently holding onto the current stack.
+
+         */
+
+        /*
+            cmd: Location
+                 Entity
+                 Command
+         */
         // This returns a dummy interpretation involving two random objects in the world
+
         var objects : string[] = Array.prototype.concat.apply([], state.stacks);
-        var a : string = objects[Math.floor(Math.random() * objects.length)];
-        var b : string = objects[Math.floor(Math.random() * objects.length)];
-        var interpretation : DNFFormula = [[
-            {polarity: true, relation: "ontop", args: [a, "floor"]},
-            {polarity: true, relation: "holding", args: [b]}
-        ]];
+        var a : string = objects[Math.floor(1)];
+        var b : string = objects[Math.floor(2)];
+
+        /*
+         var interpretation : DNFFormula = [[
+         {polarity: true, relation: "ontop", args: [a, "floor"]},
+         {polarity: true, relation: "holding", args: [b]}
+         ]];
+         */
+
+        state.stacks.forEach(stack => {
+            if(cmd.entity.object == stack[0]){
+
+            }
+        });
+
+        // 	[[{...}],[{...}],[{...}],[{...}]]   OR
+        // 	[[{...},{...},{...},{...}]]         AND
+
+        var interpretation : DNFFormula = [
+            [
+                {
+                    polarity: true,
+                    relation: cmd.entity.object.location.relation,
+                    args: [
+                        cmd.entity.object.toString()
+                    ]
+                },
+                {
+                    polarity: false,
+                    relation: cmd.entity.quantifier,
+                    args: [
+                        cmd.entity.object.toString()
+                    ]
+                }
+            ]
+
+        ];
+
+        console.log(state);
+        console.log(cmd);
+
         return interpretation;
     }
 
