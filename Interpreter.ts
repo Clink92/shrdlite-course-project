@@ -2,6 +2,7 @@
 ///<reference path="Parser.ts"/>
 
 import DNFFormula = Interpreter.DNFFormula;
+import Entity = Parser.Entity;
 /**
  * Interpreter module
  *
@@ -141,11 +142,85 @@ module Interpreter {
         // This returns a dummy interpretation involving two random objects in the world
 
 
-        var interpretation : DNFFormula = [];
+        var interpretation:DNFFormula = [];
+        var objects:string[] = getObjects(cmd.entity, state);
 
-        if(cmd.location == undefined) {
-            interpretation = noLocation(cmd, state);
+        if (cmd.location == undefined) {
+            objects.forEach(function (obj) {
+                interpretation.push(
+                    [
+                        {
+                            polarity: true,
+                            // since no locations is specified we assume that we just pick it up and hold
+                            relation: "holding",
+                            args: [
+                                obj
+                            ]
+                        }
+                    ]);
+            });
         }
+        else if (cmd.location.relation !== undefined) {
+            var locationObjects:string[] = getObjects(cmd.location.entity, state);
+            console.log("Entity", objects);
+            console.log("Location", locationObjects);
+
+
+            objects.forEach(function (obj) {
+                locationObjects.forEach(function (locObj) {
+                    if (state.objects[obj] != state.objects[locObj]) {
+
+                        if (["ontop", "below", "above", "inside"].indexOf(cmd.location.relation) != -1) {
+                            if (lte(state.objects[obj], state.objects[locObj])
+                                && !(cmd.location.relation == "ontop" && state.objects[obj].form == "ball" && state.objects[locObj].form == "table")) {
+                                interpretation.push([
+                                    {
+                                        polarity: true,
+                                        relation: cmd.location.relation,
+                                        args: [
+                                            obj, locObj
+                                        ]
+                                    }
+                                ]);
+                            }
+                        }
+                        else {
+                            interpretation.push([
+                                {
+                                    polarity: true,
+                                    relation: cmd.location.relation,
+                                    args: [
+                                        obj, locObj
+                                    ]
+                                }
+                            ]);
+                        }
+
+                    }
+                })
+            });
+        }
+            /*
+            objects.forEach(function (obj) {
+                locationObjects.forEach(function (locObj) {
+                    if (state.objects[obj] != state.objects[locObj]) {
+                        if (["ontop", "below", "above"].indexOf(cmd.location.relation) != -1)){
+                    if (lte(state.objects[obj], state.objects[locObj]
+                            && !(cmd.location.relation == "ontop" && state.objects[obj].form == "ball" && state.objects[locObj].form == "table")){
+                        interpretation.push([
+                            {
+                                polarity: true,
+                                relation: cmd.location.relation,
+                                args: [
+                                    obj, locObj
+                                ]
+                            }
+                        ]);
+
+                    }
+                     }
+            }});
+            */
 
         else {
             interpretation = [
@@ -161,39 +236,109 @@ module Interpreter {
             ];
         }
 
-
-
-        return interpretation;
+        return (interpretation.length != 0) ? interpretation : null;
     }
 
 }
 
-function noLocation(cmd:Parser.Command, state:WorldState):DNFFormula{
-    var obj = cmd.entity.object;
-    var interpretation : DNFFormula = [];
+function getObjects(entity:Parser.Entity, state:WorldState):string[] {
+    var obj = entity.object;
+    var objects:string[] = [];
 
+    for(var col : number = 0; col < state.stacks.length; col++){
+        var stack : Stack = state.stacks[col];
+        for(var row : number = 0; row < stack.length; row ++){
+            var item : string = stack[row];
+
+            if (descriptionMatch(obj, state.objects[item])) {
+                objects.push(item);
+            }
+            else if(obj.location !== undefined && obj.location.relation == "beside"){
+
+                if(col > 0) {
+                    var leftObj : Parser.Object = state.stacks[col - 1][row];
+                    if(leftObj !== undefined){
+                        if(descriptionMatch(obj.location.entity.object, leftObj)){
+                            objects.push(item);
+                            break;
+                        }
+                    }
+                }
+                if(col < state.stacks.length - 1) {
+                    var rightObj : Parser.Object = state.stacks[col + 1][row];
+                    if(rightObj !== undefined){
+                        if(descriptionMatch(obj.location.entity.object, rightObj)){
+                            objects.push(item);
+                            break;
+                        }
+                    }
+                }
+
+
+                console.log("DSKAODSKAO");
+            }
+        }
+    }
+
+    /*
     state.stacks.forEach(function (stack) {
         stack.forEach(function (item) {
-            if (obj.color == state.objects[item].color
-                || (obj.color == null && (obj.form == state.objects[item].form || obj.form == "anyform"))) {
-                interpretation.push([
-                    {
-                        polarity: true,
-                        relation: "holding",
-                        args: [
-                            item
-                        ]
-                    }
-                ]);
+            if ((obj.color == state.objects[item].color || obj.color == null)
+                && (obj.size == state.objects[item].size || obj.size == null)
+                && (obj.form == state.objects[item].form || obj.form == "anyform")
+                && (obj.location.relation == "beside" && )) {
+                objects.push(item);
             }
         })
     });
+    */
 
-    return interpretation;
+    return objects;
+}
+
+function descriptionMatch(obj : Parser.Object, stateObject : Parser.Object) : boolean {
+    return (obj.color == stateObject.color || obj.color == null)
+    && (obj.size == stateObject.size || obj.size == null)
+    && (obj.form == stateObject.form || obj.form == "anyform");
+}
+
+function isEmpty(stacks:Stack[], obj:string):boolean {
+    for (var i:number = 0; i < stacks.length; i++) {
+        if (stacks[i][stacks[i].length - 1] == obj) return true;
+    }
+    return false;
+}
+
+
+function contains(stacks:Stack[], objBottom:string, objTop:string):boolean {
+    return false;
+}
+
+enum SIZE {
+    small,
+    large,
+    undefined
+}
+
+
+function getSize(obj:Parser.Object):SIZE {
+    switch (obj.size) {
+        case "small":
+            return SIZE.small;
+        case "large":
+            return SIZE.large;
+        default:
+            return SIZE.undefined
+    }
+}
+
+// If  obj1 is less than or equal obj2
+function lte(obj1:Parser.Object, obj2:Parser.Object):boolean {
+    return getSize(obj1) <= getSize(obj2);
 }
 
 /*
-function isAnyObject(obj, state, item){
-    return (obj.color == null && obj.form == state.objects[item].form);
-}
-*/
+ function isAnyObject(obj, state, item){
+ return (obj.color == null && obj.form == state.objects[item].form);
+ }
+ */
