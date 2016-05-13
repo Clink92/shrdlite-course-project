@@ -144,40 +144,41 @@ var Interpreter;
      */
     function interpretCommand(cmd, state) {
         var interpretation = [];
+        var location = cmd.location;
         var objects = getObjects(cmd.entity, state);
-        if (!cmd.location) {
+        // if there is no location we go through all the objects and assume we just pick them up
+        if (!location) {
             objects.forEach(function (obj) {
                 interpretation.push(getGoal(true, "holding", [obj]));
             });
         }
         else {
-            var location_1 = cmd.location;
-            var locationObjects = getObjects(location_1.entity, state);
+            var locationObjects = getObjects(location.entity, state);
             objects.forEach(function (obj) {
                 locationObjects.forEach(function (locObj) {
-                    if (locObj == "floor") {
-                        interpretation.push(getGoal(true, location_1.relation, [obj, locObj]));
-                    }
-                    else if (state.objects[obj] != state.objects[locObj]) {
-                        if (checkStackRelation(location_1.relation)) {
+                    if (state.objects[obj] !== state.objects[locObj]) {
+                        // If the location is a floor we can always place the object there
+                        // If we have a stack relationship we need to check that it fulfills the physical laws
+                        if (locObj !== "floor" && checkStackRelation(location.relation)) {
                             // small objects cannot support large objects
                             if (lte(state.objects[obj], state.objects[locObj])) {
                                 var stateObj = state.objects[obj];
                                 var stateLocObj = state.objects[locObj];
-                                switch (location_1.relation) {
+                                // Depending on the type of relationship we define different laws
+                                switch (location.relation) {
                                     case RELATIONS.ontop:
                                         if (stateObj.form == "ball" && stateLocObj.form == "table")
                                             break;
-                                        interpretation.push(getGoal(true, location_1.relation, [obj, locObj]));
+                                        interpretation.push(getGoal(true, location.relation, [obj, locObj]));
                                         break;
                                     default:
-                                        interpretation.push(getGoal(true, location_1.relation, [obj, locObj]));
+                                        interpretation.push(getGoal(true, location.relation, [obj, locObj]));
                                         break;
                                 }
                             }
                         }
                         else {
-                            interpretation.push(getGoal(true, location_1.relation, [obj, locObj]));
+                            interpretation.push(getGoal(true, location.relation, [obj, locObj]));
                         }
                     }
                 });
@@ -195,11 +196,12 @@ var Interpreter;
     function getObjects(entity, state) {
         var obj = entity.object;
         var objects = [];
-        // If we search for a floor we add it and simply return it
+        // If we search for a floor we add it
         if (descriptionMatch(obj, { form: "floor" })) {
             objects.push("floor");
             return objects;
         }
+        // we make a search through the world state to find objects that match our description
         for (var col = 0; col < state.stacks.length; col++) {
             var stack = state.stacks[col];
             for (var row = 0; row < stack.length; row++) {
@@ -208,31 +210,28 @@ var Interpreter;
                     objects.push(item);
                 }
                 else if (obj.location !== undefined && descriptionMatch(obj.object, state.objects[item])) {
-                    // If there is a location defined and that location object matches the state object we handle the relation
-                    //while(location){
+                    // If there is a location defined and that location object matches the state object
+                    // we handle the relation
                     var rObj = void 0;
-                    var location_2 = obj.location;
-                    // If there is a location defined and that location object matches the state object we handle the relation
-                    switch (location_2.relation) {
+                    var location_1 = obj.location;
+                    // If there is a location defined and that location object matches the state object
+                    // we handle the relation
+                    switch (location_1.relation) {
                         case RELATIONS.beside:
-                            console.log("TGIF");
-                            // for the object to be relevant it needs to have what we search for on either the left or the right side
+                            // for the object to be relevant it needs to have what we search for on either
+                            // the left or the right side
                             rObj = state.objects[state.stacks[col + 1][row]]
                                 || state.objects[state.stacks[col - 1][row]];
                             break;
+                        case RELATIONS.ontop:
                         case RELATIONS.inside:
                             rObj = (row == 0) ? { form: "floor" } : state.objects[stack[row - 1]];
                             break;
-                        case RELATIONS.ontop:
-                            rObj = (row == 0) ? { form: "floor" } : state.objects[stack[row - 1]];
-                            break;
                         default:
-                            objects.push(item);
                             break;
                     }
-                    if (rObj && descriptionMatch(location_2.entity.object, rObj)) {
-                        //if(location.entity.object.location !== undefined) objects.push(item);
-                        //else location = location.entity.object.location;
+                    // If the relation object is defined and it matches the description we add it to the objects
+                    if (rObj && descriptionMatch(location_1.entity.object, rObj)) {
                         objects.push(item);
                     }
                 }
@@ -246,7 +245,7 @@ var Interpreter;
      * @param pol
      * @param rel
      * @param args
-     * @returns {{polarity: any, relation: any, args: any[]}[]}
+     * @returns {Interpreter.Literal[]}
      */
     function getGoal(pol, rel, args) {
         return [
@@ -257,6 +256,13 @@ var Interpreter;
             }
         ];
     }
+    /**
+     * A check to see if the description matches an object
+     *
+     * @param obj
+     * @param stateObject
+     * @returns {boolean}
+     */
     function descriptionMatch(obj, stateObject) {
         return (obj.color == stateObject.color || obj.color == null)
             && (obj.size == stateObject.size || obj.size == null)
@@ -268,8 +274,14 @@ var Interpreter;
         SIZE[SIZE["large"] = 1] = "large";
         SIZE[SIZE["undefined"] = 2] = "undefined";
     })(SIZE || (SIZE = {}));
-    function getSize(obj) {
-        switch (obj.size) {
+    /**
+     *  Get the enum size according to the string that is passed into the function
+     *
+     * @param string
+     * @returns {Interpreter.SIZE}
+     */
+    function getSize(size) {
+        switch (size) {
             case "small":
                 return SIZE.small;
             case "large":
@@ -278,11 +290,27 @@ var Interpreter;
                 return SIZE.undefined;
         }
     }
-    // If  obj1 is less than or equal obj2
+    /**
+     * Simply a less than or equal for the Parse.Object
+     *
+     * @param obj1
+     * @param obj2
+     * @returns {boolean}
+     */
     function lte(obj1, obj2) {
-        return getSize(obj1) <= getSize(obj2);
+        return getSize(obj1.size) <= getSize(obj2.size);
     }
+    /**
+     *
+     * Check to see if we have a stack relation in the world state
+     * A stack relation implies that we they are in a vertical relationship
+     *
+     * @param relation
+     * @returns {boolean}
+     */
     function checkStackRelation(relation) {
+        // We create an array and the check if the relation is contained within that
+        // array.
         var arr = [
             RELATIONS.ontop,
             RELATIONS.above,

@@ -121,36 +121,38 @@ module Interpreter {
      * @param state The current state of the world. Useful to look up objects in the world.
      * @returns A list of list of Literal, representing a formula in disjunctive normal form (disjunction of conjunctions). See the dummy interpetation returned in the code for an example, which means ontop(a,floor) AND holding(b).
      */
-    function interpretCommand(cmd:Parser.Command, state:WorldState):DNFFormula {
+    function interpretCommand(cmd : Parser.Command, state : WorldState) : DNFFormula {
 
-        let interpretation:DNFFormula = [];
-        var objects:string[] = getObjects(cmd.entity, state);
+        let interpretation : DNFFormula = [];
+        let location : Parser.Location = cmd.location;
+        let objects : string[] = getObjects(cmd.entity, state);
 
-        if (!cmd.location) {
-            objects.forEach(function (obj) {
+        // if there is no location we go through all the objects and assume we just pick them up
+        if (!location) {
+            objects.forEach((obj) => {
                 interpretation.push(getGoal(true, "holding", [obj]));
             });
         }
-        else{
-            let location : Parser.Location = cmd.location;
-            var locationObjects:string[] = getObjects(location.entity, state);
+        else {
+            var locationObjects : string[] = getObjects(location.entity, state);
 
             objects.forEach((obj) => {
                 locationObjects.forEach((locObj) => {
+                    if (state.objects[obj] !== state.objects[locObj]) {
 
-                    if (locObj == "floor") {
-                        interpretation.push(getGoal(true, location.relation, [obj, locObj]));
-                    }
-                    else if (state.objects[obj] != state.objects[locObj]) {
-                        if (checkStackRelation(location.relation)) {
+                        // If the location is a floor we can always place the object there
+                        // If we have a stack relationship we need to check that it fulfills the physical laws
+                        if (locObj !== "floor" && checkStackRelation(location.relation)) {
+
                             // small objects cannot support large objects
-                            if (lte(state.objects[obj], state.objects[locObj])){
+                            if (lte(state.objects[obj], state.objects[locObj])) {
                                 let stateObj : Parser.Object = state.objects[obj];
                                 let stateLocObj : Parser.Object = state.objects[locObj];
 
-                                switch(location.relation){
+                                // Depending on the type of relationship we define different laws
+                                switch (location.relation) {
                                     case RELATIONS.ontop:
-                                        if(stateObj.form == "ball" && stateLocObj.form == "table") break;
+                                        if (stateObj.form == "ball" && stateLocObj.form == "table") break;
                                         interpretation.push(getGoal(true, location.relation, [obj, locObj]));
                                         break;
                                     default:
@@ -163,12 +165,11 @@ module Interpreter {
                             interpretation.push(getGoal(true, location.relation, [obj, locObj]));
                         }
                     }
-
                 })
             });
         }
 
-        return (interpretation.length !== 0) ? interpretation:null;
+        return (interpretation.length !== 0) ? interpretation : null;
     }
 
     /**
@@ -178,56 +179,55 @@ module Interpreter {
      * @param state
      * @returns {string[]}
      */
-    function getObjects(entity:Parser.Entity, state:WorldState):string[] {
-        var obj:Parser.Object = entity.object;
-        var objects:string[] = [];
+    function getObjects(entity : Parser.Entity, state : WorldState) : string[] {
+        var obj : Parser.Object = entity.object;
+        var objects : string[] = [];
 
-        // If we search for a floor we add it and simply return it
+        // If we search for a floor we add it
         if (descriptionMatch(obj, {form: "floor"})) {
             objects.push("floor");
             return objects;
         }
 
-        for (var col:number = 0; col < state.stacks.length; col++) {
-            var stack:Stack = state.stacks[col];
-            for (var row:number = 0; row < stack.length; row++) {
-                var item:string = stack[row];
+        // we make a search through the world state to find objects that match our description
+        for (var col : number = 0; col < state.stacks.length; col++) {
+            var stack : Stack = state.stacks[col];
+
+            for (var row : number = 0; row < stack.length; row++) {
+                var item : string = stack[row];
 
                 if (descriptionMatch(obj, state.objects[item])) {
                     objects.push(item);
                 }
                 else if (obj.location !== undefined && descriptionMatch(obj.object, state.objects[item])) {
-                    // If there is a location defined and that location object matches the state object we handle the relation
+                    // If there is a location defined and that location object matches the state object
+                    // we handle the relation
 
-                    //while(location){
-                    let rObj:Parser.Object;
-                    let location:Parser.Location = obj.location;
+                    let rObj : Parser.Object;
+                    let location : Parser.Location = obj.location;
 
-                    // If there is a location defined and that location object matches the state object we handle the relation
+                    // If there is a location defined and that location object matches the state object
+                    // we handle the relation
                     switch (location.relation) {
                         case RELATIONS.beside:
-                            console.log("TGIF");
-                            // for the object to be relevant it needs to have what we search for on either the left or the right side
+                            // for the object to be relevant it needs to have what we search for on either
+                            // the left or the right side
                             rObj = state.objects[state.stacks[col + 1][row]]
                                 || state.objects[state.stacks[col - 1][row]];
                             break;
+                        case RELATIONS.ontop:
                         case RELATIONS.inside:
                             rObj = (row == 0) ? {form: "floor"} : state.objects[stack[row - 1]];
                             break;
-                        case RELATIONS.ontop:
-                            rObj = (row == 0) ? {form: "floor"} : state.objects[stack[row - 1]];
-                            break;
                         default:
-                            objects.push(item);
                             break;
                     }
 
+                    // If the relation object is defined and it matches the description we add it to the objects
                     if (rObj && descriptionMatch(location.entity.object, rObj)) {
-                        //if(location.entity.object.location !== undefined) objects.push(item);
-                        //else location = location.entity.object.location;
                         objects.push(item);
                     }
-                    //}
+
                 }
             }
         }
@@ -241,9 +241,9 @@ module Interpreter {
      * @param pol
      * @param rel
      * @param args
-     * @returns {{polarity: any, relation: any, args: any[]}[]}
+     * @returns {Interpreter.Literal[]}
      */
-    function getGoal(pol : boolean, rel : string, args : string[]) : Interpreter.Literal[] {
+    function getGoal(pol:boolean, rel:string, args:string[]) : Interpreter.Literal[] {
         return [
             {
                 polarity: pol,
@@ -253,6 +253,13 @@ module Interpreter {
         ];
     }
 
+    /**
+     * A check to see if the description matches an object
+     *
+     * @param obj
+     * @param stateObject
+     * @returns {boolean}
+     */
     function descriptionMatch(obj:Parser.Object, stateObject:Parser.Object):boolean {
         return (obj.color == stateObject.color || obj.color == null)
             && (obj.size == stateObject.size || obj.size == null)
@@ -265,8 +272,14 @@ module Interpreter {
         undefined
     }
 
-    function getSize(obj:Parser.Object):SIZE {
-        switch (obj.size) {
+    /**
+     *  Get the enum size according to the string that is passed into the function
+     *
+     * @param string
+     * @returns {Interpreter.SIZE}
+     */
+    function getSize(size : string) : SIZE {
+        switch (size) {
             case "small":
                 return SIZE.small;
             case "large":
@@ -276,12 +289,28 @@ module Interpreter {
         }
     }
 
-    // If  obj1 is less than or equal obj2
-    function lte(obj1:Parser.Object, obj2:Parser.Object):boolean {
-        return getSize(obj1) <= getSize(obj2);
+    /**
+     * Simply a less than or equal for the Parse.Object
+     *
+     * @param obj1
+     * @param obj2
+     * @returns {boolean}
+     */
+    function lte(obj1 : Parser.Object, obj2 : Parser.Object) : boolean {
+        return getSize(obj1.size) <= getSize(obj2.size);
     }
 
+    /**
+     *
+     * Check to see if we have a stack relation in the world state
+     * A stack relation implies that we they are in a vertical relationship
+     *
+     * @param relation
+     * @returns {boolean}
+     */
     function checkStackRelation(relation : string) : boolean {
+        // We create an array and the check if the relation is contained within that
+        // array.
         let arr = [
             RELATIONS.ontop,
             RELATIONS.above,
@@ -289,7 +318,7 @@ module Interpreter {
             RELATIONS.under
         ];
 
-        return (arr.indexOf(relation) === -1) ? false:true;
+        return (arr.indexOf(relation) === -1) ? false : true;
     }
 
 }
