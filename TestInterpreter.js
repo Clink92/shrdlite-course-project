@@ -72,19 +72,13 @@ var extend = require("util").extend;
  * "b" is a table, the command "put the ball on the table" can be
  * interpreted as the literal ontop(a,b). More complex goals can be
  * written using conjunctions and disjunctions of these literals.
- *
- * In general, the module can take a list of possible parses and return
- * a list of possible interpretations, but the code to handle this has
- * already been written for you. The only part you need to implement is
- * the core interpretation function, namely `interpretCommand`, which produces a
- * single interpretation for a single command.
  */
 var Interpreter;
 (function (Interpreter) {
     //////////////////////////////////////////////////////////////////////
     // exported functions, classes and interfaces/types
     /**
-     Top-level function for the Interpreter. It calls `interpretCommand` for each possible parse of the command. No need to change this one.
+     Top-level function for the Interpreter. It calls `interpretCommand` for each possible parse of the command.
      * @param parses List of parses produced by the Parser.
      * @param currentState The current state of the world.
      * @returns Augments ParseResult with a list of interpretations. Each interpretation is represented by a list of Literals.
