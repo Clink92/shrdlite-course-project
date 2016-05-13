@@ -126,13 +126,18 @@ var Interpreter;
     Interpreter.stringifyLiteral = stringifyLiteral;
     //////////////////////////////////////////////////////////////////////
     // private functions
+    var RELATIONS = {
+        ontop: 'ontop',
+        inside: 'inside',
+        above: 'above',
+        under: 'under',
+        beside: 'beside',
+        leftof: 'leftof',
+        rightof: 'rightof'
+    };
     /**
-     * The core interpretation function. The code here is just a
-     * template; you should rewrite this function entirely. In this
-     * template, the code produces a dummy interpretation which is not
-     * connected to `cmd`, but your version of the function should
-     * analyse cmd in order to figure out what interpretation to
-     * return.
+     *
+     *
      * @param cmd The actual command. Note that it is *not* a string, but rather an object of type `Command` (as it has been parsed by the parser).
      * @param state The current state of the world. Useful to look up objects in the world.
      * @returns A list of list of Literal, representing a formula in disjunctive normal form (disjunction of conjunctions). See the dummy interpetation returned in the code for an example, which means ontop(a,floor) AND holding(b).
@@ -140,99 +145,61 @@ var Interpreter;
     function interpretCommand(cmd, state) {
         var interpretation = [];
         var objects = getObjects(cmd.entity, state);
-        if (cmd.location == undefined) {
+        if (!cmd.location) {
             objects.forEach(function (obj) {
-                interpretation.push([
-                    {
-                        polarity: true,
-                        // since no locations is specified we assume that we just pick it up and hold
-                        relation: "holding",
-                        args: [
-                            obj
-                        ]
-                    }
-                ]);
+                interpretation.push(getGoal(true, "holding", [obj]));
             });
         }
-        else if (cmd.location.relation !== undefined) {
-            var locationObjects = getObjects(cmd.location.entity, state);
-            for (var i = 0; i < objects.length; i++) {
-                var obj = objects[i];
-                for (var j = 0; j < locationObjects.length; j++) {
-                    var locObj = locationObjects[j];
+        else {
+            var location_1 = cmd.location;
+            var locationObjects = getObjects(location_1.entity, state);
+            objects.forEach(function (obj) {
+                locationObjects.forEach(function (locObj) {
                     if (locObj == "floor") {
-                        interpretation.push([
-                            {
-                                polarity: true,
-                                relation: cmd.location.relation,
-                                args: [
-                                    obj, locObj
-                                ]
-                            }
-                        ]);
+                        interpretation.push(getGoal(true, location_1.relation, [obj, locObj]));
                     }
                     else if (state.objects[obj] != state.objects[locObj]) {
-                        if (["ontop", "below", "above", "inside"].indexOf(cmd.location.relation) != -1) {
-                            if (lte(state.objects[obj], state.objects[locObj])
-                                && !(cmd.location.relation == "ontop" && state.objects[obj].form == "ball" && state.objects[locObj].form == "table")) {
-                                interpretation.push([
-                                    {
-                                        polarity: true,
-                                        relation: cmd.location.relation,
-                                        args: [
-                                            obj, locObj
-                                        ]
-                                    }
-                                ]);
+                        if (checkStackRelation(location_1.relation)) {
+                            // small objects cannot support large objects
+                            if (lte(state.objects[obj], state.objects[locObj])) {
+                                var stateObj = state.objects[obj];
+                                var stateLocObj = state.objects[locObj];
+                                switch (location_1.relation) {
+                                    case RELATIONS.ontop:
+                                        if (stateObj.form == "ball" && stateLocObj.form == "table")
+                                            break;
+                                        interpretation.push(getGoal(true, location_1.relation, [obj, locObj]));
+                                        break;
+                                    default:
+                                        interpretation.push(getGoal(true, location_1.relation, [obj, locObj]));
+                                        break;
+                                }
                             }
                         }
                         else {
-                            interpretation.push([
-                                {
-                                    polarity: true,
-                                    relation: cmd.location.relation,
-                                    args: [
-                                        obj, locObj
-                                    ]
-                                }
-                            ]);
+                            interpretation.push(getGoal(true, location_1.relation, [obj, locObj]));
                         }
                     }
-                }
-            }
+                });
+            });
         }
-        else {
-            interpretation = [
-                [
-                    {
-                        polarity: true,
-                        relation: cmd.entity.object.location.relation,
-                        args: [
-                            cmd.entity.object.toString()
-                        ]
-                    }
-                ]
-            ];
-        }
-        if (interpretation.length === 0) {
-            return null;
-        }
-        else {
-            return interpretation;
-        }
+        return (interpretation.length !== 0) ? interpretation : null;
     }
-})(Interpreter || (Interpreter = {}));
-function getObjects(entity, state) {
-    var obj = entity.object;
-    var objects = [];
-    if (descriptionMatch(obj, { form: "floor" })) {
-        state.stacks.forEach(function (stack) {
-            if (stack.length == 0 && objects.length == 0) {
-                objects.push("floor");
-            }
-        });
-    }
-    else {
+    /**
+     * Finds all the objects that matches the entity description and returns the
+     *
+     * @param entity
+     * @param state
+     * @returns {string[]}
+     */
+    function getObjects(entity, state) {
+        var obj = entity.object;
+        var objects = [];
+        // If we search for a floor we add it and simply return it
+        if (descriptionMatch(obj, { form: "floor" })) {
+            objects.push("floor");
+            return objects;
+        }
         for (var col = 0; col < state.stacks.length; col++) {
             var stack = state.stacks[col];
             for (var row = 0; row < stack.length; row++) {
@@ -242,78 +209,89 @@ function getObjects(entity, state) {
                 }
                 else if (obj.location !== undefined && descriptionMatch(obj.object, state.objects[item])) {
                     // If there is a location defined and that location object matches the state object we handle the relation
-                    switch (obj.location.relation) {
-                        case "beside":
+                    //while(location){
+                    var rObj = void 0;
+                    var location_2 = obj.location;
+                    // If there is a location defined and that location object matches the state object we handle the relation
+                    switch (location_2.relation) {
+                        case RELATIONS.beside:
+                            console.log("TGIF");
                             // for the object to be relevant it needs to have what we search for on either the left or the right side
-                            var nObj = state.objects[state.stacks[col + 1][row]] || state.objects[state.stacks[col - 1][row]];
-                            if (nObj != undefined) {
-                                if (descriptionMatch(obj.location.entity.object, nObj)) {
-                                    objects.push(item);
-                                }
-                            }
+                            rObj = state.objects[state.stacks[col + 1][row]]
+                                || state.objects[state.stacks[col - 1][row]];
                             break;
-                        case "inside":
-                            var uObj = (row == 0) ? { form: "floor" } : state.objects[stack[row - 1]];
-                            if (descriptionMatch(obj.location.entity.object, uObj)) {
-                                objects.push(item);
-                            }
+                        case RELATIONS.inside:
+                            rObj = (row == 0) ? { form: "floor" } : state.objects[stack[row - 1]];
                             break;
-                        case "ontop":
-                            var uObj = (row == 0) ? { form: "floor" } : state.objects[stack[row - 1]];
-                            if (descriptionMatch(obj.location.entity.object, uObj)) {
-                                objects.push(item);
-                            }
+                        case RELATIONS.ontop:
+                            rObj = (row == 0) ? { form: "floor" } : state.objects[stack[row - 1]];
                             break;
                         default:
                             objects.push(item);
                             break;
                     }
+                    if (rObj && descriptionMatch(location_2.entity.object, rObj)) {
+                        //if(location.entity.object.location !== undefined) objects.push(item);
+                        //else location = location.entity.object.location;
+                        objects.push(item);
+                    }
                 }
             }
         }
+        return objects;
     }
-    return objects;
-}
-function descriptionMatch(obj, stateObject) {
-    return (obj.color == stateObject.color || obj.color == null)
-        && (obj.size == stateObject.size || obj.size == null)
-        && (obj.form == stateObject.form || (obj.form == "anyform" && stateObject.form != "floor"));
-}
-function isEmpty(stacks, obj) {
-    for (var i = 0; i < stacks.length; i++) {
-        if (stacks[i][stacks[i].length - 1] == obj)
-            return true;
+    /**
+     * Returns a goal for the DNF
+     *
+     * @param pol
+     * @param rel
+     * @param args
+     * @returns {{polarity: any, relation: any, args: any[]}[]}
+     */
+    function getGoal(pol, rel, args) {
+        return [
+            {
+                polarity: pol,
+                relation: rel,
+                args: args
+            }
+        ];
     }
-    return false;
-}
-function contains(stacks, objBottom, objTop) {
-    return false;
-}
-var SIZE;
-(function (SIZE) {
-    SIZE[SIZE["small"] = 0] = "small";
-    SIZE[SIZE["large"] = 1] = "large";
-    SIZE[SIZE["undefined"] = 2] = "undefined";
-})(SIZE || (SIZE = {}));
-function getSize(obj) {
-    switch (obj.size) {
-        case "small":
-            return SIZE.small;
-        case "large":
-            return SIZE.large;
-        default:
-            return SIZE.undefined;
+    function descriptionMatch(obj, stateObject) {
+        return (obj.color == stateObject.color || obj.color == null)
+            && (obj.size == stateObject.size || obj.size == null)
+            && (obj.form == stateObject.form || (obj.form == "anyform" && stateObject.form != "floor"));
     }
-}
-// If  obj1 is less than or equal obj2
-function lte(obj1, obj2) {
-    return getSize(obj1) <= getSize(obj2);
-}
-/*
- function isAnyObject(obj, state, item){
- return (obj.color == null && obj.form == state.objects[item].form);
- }
- */
+    var SIZE;
+    (function (SIZE) {
+        SIZE[SIZE["small"] = 0] = "small";
+        SIZE[SIZE["large"] = 1] = "large";
+        SIZE[SIZE["undefined"] = 2] = "undefined";
+    })(SIZE || (SIZE = {}));
+    function getSize(obj) {
+        switch (obj.size) {
+            case "small":
+                return SIZE.small;
+            case "large":
+                return SIZE.large;
+            default:
+                return SIZE.undefined;
+        }
+    }
+    // If  obj1 is less than or equal obj2
+    function lte(obj1, obj2) {
+        return getSize(obj1) <= getSize(obj2);
+    }
+    function checkStackRelation(relation) {
+        var arr = [
+            RELATIONS.ontop,
+            RELATIONS.above,
+            RELATIONS.inside,
+            RELATIONS.under
+        ];
+        return (arr.indexOf(relation) === -1) ? false : true;
+    }
+})(Interpreter || (Interpreter = {}));
 ///<reference path="World.ts"/>
 ///<reference path="Interpreter.ts"/>
 /**
