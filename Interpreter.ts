@@ -215,11 +215,7 @@ function getObjects(entity:Parser.Entity, state:WorldState):string[] {
 
 
     if(descriptionMatch(obj, {form: "floor"})){
-        state.stacks.forEach(function(stack){
-           if(stack.length == 0 && objects.length == 0) {
-               objects.push("floor");
-           }
-        });
+        objects.push("floor");
     }
     else{
         for(var col : number = 0; col < state.stacks.length; col++){
@@ -255,7 +251,7 @@ function getObjects(entity:Parser.Entity, state:WorldState):string[] {
                             }
                             break;
                         default:
-                            objects.push(item);
+                            console.log("Object relation is not defined");
                             break;
                     }
                 }

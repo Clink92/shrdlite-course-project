@@ -226,11 +226,9 @@ function getObjects(entity, state) {
     var obj = entity.object;
     var objects = [];
     if (descriptionMatch(obj, { form: "floor" })) {
-        state.stacks.forEach(function (stack) {
-            if (stack.length == 0 && objects.length == 0) {
-                objects.push("floor");
-            }
-        });
+        //state.stacks.forEach(function(stack){
+        // if(stack.length == 0 && objects.length == 0) {
+        objects.push("floor");
     }
     else {
         for (var col = 0; col < state.stacks.length; col++) {
@@ -265,7 +263,7 @@ function getObjects(entity, state) {
                             }
                             break;
                         default:
-                            objects.push(item);
+                            console.log("Object relation is not defined");
                             break;
                     }
                 }
