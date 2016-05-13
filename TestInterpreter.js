@@ -54,6 +54,8 @@ if (typeof require !== 'undefined') {
 }
 ///<reference path="World.ts"/>
 ///<reference path="Parser.ts"/>
+///<reference path="lib/node.d.ts"/>
+var extend = require("util").extend;
 /**
  * Interpreter module
  *
@@ -90,13 +92,13 @@ var Interpreter;
     function interpret(parses, currentState) {
         var errors = [];
         var interpretations = [];
-        var counter = 0;
         parses.forEach(function (parseresult) {
             try {
                 var result = parseresult;
                 result.interpretation = interpretCommand(result.parse, currentState);
-                interpretations.push(result);
-                counter++;
+                // NOTE: We did not now what to return if there was no result so we return null, if so we do not add it
+                if (result.interpretation)
+                    interpretations.push(result);
             }
             catch (err) {
                 errors.push(err);
@@ -136,28 +138,6 @@ var Interpreter;
      * @returns A list of list of Literal, representing a formula in disjunctive normal form (disjunction of conjunctions). See the dummy interpetation returned in the code for an example, which means ontop(a,floor) AND holding(b).
      */
     function interpretCommand(cmd, state) {
-        // Note: some parses might not have an interpretation, and some parses might have several interpretations.
-        // Output: a list of logical interpretations
-        // Forms: Bricks, planks, balls, pyramids, boxes and tables.
-        // Colors: Red, black, blue, green, yellow, white.
-        // Sizes: Large, small.
-        /*
-         The basic commands
-
-         A plan is a sequence of basic commands, and there are only four of them:
-
-         left: Move the arm one step to the left.
-         right: Move the arm one step to the right.
-         pick: Pick up the topmost object in the stack where the arm is.
-         drop: Drop the object that you’re currently holding onto the current stack.
-
-         */
-        /*
-         cmd: Location
-         Entity
-         Command
-         */
-        // This returns a dummy interpretation involving two random objects in the world
         var interpretation = [];
         var objects = getObjects(cmd.entity, state);
         if (cmd.location == undefined) {
@@ -176,10 +156,10 @@ var Interpreter;
         }
         else if (cmd.location.relation !== undefined) {
             var locationObjects = getObjects(cmd.location.entity, state);
-            console.log("Entity", objects);
-            console.log("Location", locationObjects);
-            objects.forEach(function (obj) {
-                locationObjects.forEach(function (locObj) {
+            for (var i = 0; i < objects.length; i++) {
+                var obj = objects[i];
+                for (var j = 0; j < locationObjects.length; j++) {
+                    var locObj = locationObjects[j];
                     if (locObj == "floor") {
                         interpretation.push([
                             {
@@ -218,8 +198,8 @@ var Interpreter;
                             ]);
                         }
                     }
-                });
-            });
+                }
+            }
         }
         else {
             interpretation = [
@@ -234,7 +214,12 @@ var Interpreter;
                 ]
             ];
         }
-        return (interpretation.length != 0) ? interpretation : null;
+        if (interpretation.length === 0) {
+            return null;
+        }
+        else {
+            return interpretation;
+        }
     }
 })(Interpreter || (Interpreter = {}));
 function getObjects(entity, state) {
@@ -274,10 +259,8 @@ function getObjects(entity, state) {
                             }
                             break;
                         case "ontop":
-                            console.log("HEAHSSE");
                             var uObj = (row == 0) ? { form: "floor" } : state.objects[stack[row - 1]];
                             if (descriptionMatch(obj.location.entity.object, uObj)) {
-                                console.log("I WAS HERE");
                                 objects.push(item);
                             }
                             break;

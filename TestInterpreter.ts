@@ -20,7 +20,7 @@ function testInterpreter(testcase : TestCase) : boolean {
 
     var correctints : string[] = testcase.interpretations.map((intp) => intp.sort().join(" | ")).sort();
     try {
-        var interpretations : string[] = Interpreter.interpret(parses, world.currentState).map((intp) => {
+        var interpretations : string[] = Interpreter.interpret(parses, world.currentState).map((intp) => { 
             return intp.interpretation.map((literals) => literals.map(Interpreter.stringifyLiteral).sort().join(" & ")).sort().join(" | ");
         }).sort();
     }

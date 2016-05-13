@@ -1,8 +1,13 @@
 ///<reference path="World.ts"/>
 ///<reference path="Parser.ts"/>
+///<reference path="lib/node.d.ts"/>
+
 
 import DNFFormula = Interpreter.DNFFormula;
 import Entity = Parser.Entity;
+
+let extend = require("util").extend;
+
 /**
  * Interpreter module
  *
@@ -41,15 +46,12 @@ module Interpreter {
         var errors:Error[] = [];
         var interpretations:InterpretationResult[] = [];
 
-
-        let counter:number = 0;
-
         parses.forEach((parseresult) => {
             try {
                 var result:InterpretationResult = <InterpretationResult>parseresult;
                 result.interpretation = interpretCommand(result.parse, currentState);
-                interpretations.push(result);
-                counter++;
+                // NOTE: We did not now what to return if there was no result so we return null, if so we do not add it
+                if(result.interpretation) interpretations.push(result);
             } catch (err) {
                 errors.push(err);
             }
@@ -114,36 +116,8 @@ module Interpreter {
      */
     function interpretCommand(cmd:Parser.Command, state:WorldState):DNFFormula {
 
-        // Note: some parses might not have an interpretation, and some parses might have several interpretations.
-        // Output: a list of logical interpretations
-
-        // Forms: Bricks, planks, balls, pyramids, boxes and tables.
-        // Colors: Red, black, blue, green, yellow, white.
-        // Sizes: Large, small.
-
-        /*
-         The basic commands
-
-         A plan is a sequence of basic commands, and there are only four of them:
-
-         left: Move the arm one step to the left.
-         right: Move the arm one step to the right.
-         pick: Pick up the topmost object in the stack where the arm is.
-         drop: Drop the object that you’re currently holding onto the current stack.
-
-         */
-
-        /*
-         cmd: Location
-         Entity
-         Command
-         */
-        // This returns a dummy interpretation involving two random objects in the world
-
-
-        var interpretation:DNFFormula = [];
+        let interpretation:DNFFormula = [];
         var objects:string[] = getObjects(cmd.entity, state);
-
 
         if (cmd.location == undefined) {
             objects.forEach(function (obj) {
@@ -162,12 +136,12 @@ module Interpreter {
         }
         else if (cmd.location.relation !== undefined) {
             var locationObjects:string[] = getObjects(cmd.location.entity, state);
-            console.log("Entity", objects);
-            console.log("Location", locationObjects);
 
+            for(let i : number = 0; i < objects.length; i++){
+                let obj = objects[i];
+                for(let j : number = 0; j < locationObjects.length; j++){
+                    let locObj = locationObjects[j];
 
-            objects.forEach(function (obj) {
-                locationObjects.forEach(function (locObj) {
                     if(locObj == "floor"){
                         interpretation.push([
                             {
@@ -183,6 +157,7 @@ module Interpreter {
                         if (["ontop", "below", "above", "inside"].indexOf(cmd.location.relation) != -1) {
                             if (lte(state.objects[obj], state.objects[locObj])
                                 && !(cmd.location.relation == "ontop" && state.objects[obj].form == "ball" && state.objects[locObj].form == "table")) {
+
                                 interpretation.push([
                                     {
                                         polarity: true,
@@ -207,8 +182,8 @@ module Interpreter {
                         }
 
                     }
-                })
-            });
+                }
+            }
         }
         else {
             interpretation = [
@@ -224,7 +199,12 @@ module Interpreter {
             ];
         }
 
-        return (interpretation.length != 0) ? interpretation : null;
+        if(interpretation.length === 0){
+            return null;
+
+        } else {
+            return interpretation;
+        }
     }
 
 }
@@ -269,10 +249,8 @@ function getObjects(entity:Parser.Entity, state:WorldState):string[] {
                             }
                             break;
                         case "ontop":
-                            console.log("HEAHSSE");
                             var uObj : Parser.Object = (row == 0) ? {form: "floor"}:state.objects[stack[row - 1]];
                             if(descriptionMatch(obj.location.entity.object, uObj)){
-                                console.log("I WAS HERE");
                                 objects.push(item);
                             }
                             break;
