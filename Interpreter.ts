@@ -46,7 +46,6 @@ module Interpreter {
 
         parses.forEach((parseresult) => {
             try {
-                console.log("DEBUG:", counter);
                 var result:InterpretationResult = <InterpretationResult>parseresult;
                 result.interpretation = interpretCommand(result.parse, currentState);
                 interpretations.push(result);
@@ -145,6 +144,7 @@ module Interpreter {
         var interpretation:DNFFormula = [];
         var objects:string[] = getObjects(cmd.entity, state);
 
+
         if (cmd.location == undefined) {
             objects.forEach(function (obj) {
                 interpretation.push(
@@ -168,8 +168,18 @@ module Interpreter {
 
             objects.forEach(function (obj) {
                 locationObjects.forEach(function (locObj) {
-                    if (state.objects[obj] != state.objects[locObj]) {
-
+                    if(locObj == "floor"){
+                        interpretation.push([
+                            {
+                                polarity: true,
+                                relation: cmd.location.relation,
+                                args: [
+                                    obj, locObj
+                                ]
+                            }
+                        ]);
+                    }
+                    else if (state.objects[obj] != state.objects[locObj]) {
                         if (["ontop", "below", "above", "inside"].indexOf(cmd.location.relation) != -1) {
                             if (lte(state.objects[obj], state.objects[locObj])
                                 && !(cmd.location.relation == "ontop" && state.objects[obj].form == "ball" && state.objects[locObj].form == "table")) {
@@ -200,28 +210,6 @@ module Interpreter {
                 })
             });
         }
-            /*
-            objects.forEach(function (obj) {
-                locationObjects.forEach(function (locObj) {
-                    if (state.objects[obj] != state.objects[locObj]) {
-                        if (["ontop", "below", "above"].indexOf(cmd.location.relation) != -1)){
-                    if (lte(state.objects[obj], state.objects[locObj]
-                            && !(cmd.location.relation == "ontop" && state.objects[obj].form == "ball" && state.objects[locObj].form == "table")){
-                        interpretation.push([
-                            {
-                                polarity: true,
-                                relation: cmd.location.relation,
-                                args: [
-                                    obj, locObj
-                                ]
-                            }
-                        ]);
-
-                    }
-                     }
-            }});
-            */
-
         else {
             interpretation = [
                 [
@@ -242,56 +230,61 @@ module Interpreter {
 }
 
 function getObjects(entity:Parser.Entity, state:WorldState):string[] {
-    var obj = entity.object;
+    var obj : Parser.Object = entity.object;
     var objects:string[] = [];
 
-    for(var col : number = 0; col < state.stacks.length; col++){
-        var stack : Stack = state.stacks[col];
-        for(var row : number = 0; row < stack.length; row ++){
-            var item : string = stack[row];
 
-            if (descriptionMatch(obj, state.objects[item])) {
-                objects.push(item);
-            }
-            else if(obj.location !== undefined && obj.location.relation == "beside"){
+    if(descriptionMatch(obj, {form: "floor"})){
+        state.stacks.forEach(function(stack){
+           if(stack.length == 0 && objects.length == 0) {
+               objects.push("floor");
+           }
+        });
+    }
+    else{
+        for(var col : number = 0; col < state.stacks.length; col++){
+            var stack : Stack = state.stacks[col];
+            for(var row : number = 0; row < stack.length; row ++){
+                var item : string = stack[row];
 
-                if(col > 0) {
-                    var leftObj : Parser.Object = state.stacks[col - 1][row];
-                    if(leftObj !== undefined){
-                        if(descriptionMatch(obj.location.entity.object, leftObj)){
+                if (descriptionMatch(obj, state.objects[item])) {
+                    objects.push(item);
+                }
+                else if(obj.location !== undefined && descriptionMatch(obj.object, state.objects[item])){
+                    // If there is a location defined and that location object matches the state object we handle the relation
+                    switch(obj.location.relation){
+                        case "beside":
+                            // for the object to be relevant it needs to have what we search for on either the left or the right side
+                            var nObj : Parser.Object = state.objects[state.stacks[col + 1][row]] || state.objects[state.stacks[col - 1][row]];
+                            if(nObj != undefined){
+                                if(descriptionMatch(obj.location.entity.object, nObj)){
+                                    objects.push(item);
+                                }
+                            }
+                            break;
+                        case "inside":
+                            var uObj : Parser.Object = (row == 0) ? {form: "floor"}:state.objects[stack[row - 1]];
+                            if(descriptionMatch(obj.location.entity.object, uObj)){
+                                objects.push(item);
+                            }
+                            break;
+                        case "ontop":
+                            console.log("HEAHSSE");
+                            var uObj : Parser.Object = (row == 0) ? {form: "floor"}:state.objects[stack[row - 1]];
+                            if(descriptionMatch(obj.location.entity.object, uObj)){
+                                console.log("I WAS HERE");
+                                objects.push(item);
+                            }
+                            break;
+                        default:
                             objects.push(item);
                             break;
-                        }
                     }
                 }
-                if(col < state.stacks.length - 1) {
-                    var rightObj : Parser.Object = state.stacks[col + 1][row];
-                    if(rightObj !== undefined){
-                        if(descriptionMatch(obj.location.entity.object, rightObj)){
-                            objects.push(item);
-                            break;
-                        }
-                    }
-                }
-
-
-                console.log("DSKAODSKAO");
             }
-        }
     }
 
-    /*
-    state.stacks.forEach(function (stack) {
-        stack.forEach(function (item) {
-            if ((obj.color == state.objects[item].color || obj.color == null)
-                && (obj.size == state.objects[item].size || obj.size == null)
-                && (obj.form == state.objects[item].form || obj.form == "anyform")
-                && (obj.location.relation == "beside" && )) {
-                objects.push(item);
-            }
-        })
-    });
-    */
+    }
 
     return objects;
 }
@@ -299,7 +292,7 @@ function getObjects(entity:Parser.Entity, state:WorldState):string[] {
 function descriptionMatch(obj : Parser.Object, stateObject : Parser.Object) : boolean {
     return (obj.color == stateObject.color || obj.color == null)
     && (obj.size == stateObject.size || obj.size == null)
-    && (obj.form == stateObject.form || obj.form == "anyform");
+    && (obj.form == stateObject.form || (obj.form == "anyform" && stateObject.form != "floor"));
 }
 
 function isEmpty(stacks:Stack[], obj:string):boolean {

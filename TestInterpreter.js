@@ -93,7 +93,6 @@ var Interpreter;
         var counter = 0;
         parses.forEach(function (parseresult) {
             try {
-                console.log("DEBUG:", counter);
                 var result = parseresult;
                 result.interpretation = interpretCommand(result.parse, currentState);
                 interpretations.push(result);
@@ -181,7 +180,18 @@ var Interpreter;
             console.log("Location", locationObjects);
             objects.forEach(function (obj) {
                 locationObjects.forEach(function (locObj) {
-                    if (state.objects[obj] != state.objects[locObj]) {
+                    if (locObj == "floor") {
+                        interpretation.push([
+                            {
+                                polarity: true,
+                                relation: cmd.location.relation,
+                                args: [
+                                    obj, locObj
+                                ]
+                            }
+                        ]);
+                    }
+                    else if (state.objects[obj] != state.objects[locObj]) {
                         if (["ontop", "below", "above", "inside"].indexOf(cmd.location.relation) != -1) {
                             if (lte(state.objects[obj], state.objects[locObj])
                                 && !(cmd.location.relation == "ontop" && state.objects[obj].form == "ball" && state.objects[locObj].form == "table")) {
@@ -230,54 +240,61 @@ var Interpreter;
 function getObjects(entity, state) {
     var obj = entity.object;
     var objects = [];
-    for (var col = 0; col < state.stacks.length; col++) {
-        var stack = state.stacks[col];
-        for (var row = 0; row < stack.length; row++) {
-            var item = stack[row];
-            if (descriptionMatch(obj, state.objects[item])) {
-                objects.push(item);
+    if (descriptionMatch(obj, { form: "floor" })) {
+        state.stacks.forEach(function (stack) {
+            if (stack.length == 0 && objects.length == 0) {
+                objects.push("floor");
             }
-            else if (obj.location !== undefined && obj.location.relation == "beside") {
-                if (col > 0) {
-                    var leftObj = state.stacks[col - 1][row];
-                    if (leftObj !== undefined) {
-                        if (descriptionMatch(obj.location.entity.object, leftObj)) {
+        });
+    }
+    else {
+        for (var col = 0; col < state.stacks.length; col++) {
+            var stack = state.stacks[col];
+            for (var row = 0; row < stack.length; row++) {
+                var item = stack[row];
+                if (descriptionMatch(obj, state.objects[item])) {
+                    objects.push(item);
+                }
+                else if (obj.location !== undefined && descriptionMatch(obj.object, state.objects[item])) {
+                    // If there is a location defined and that location object matches the state object we handle the relation
+                    switch (obj.location.relation) {
+                        case "beside":
+                            // for the object to be relevant it needs to have what we search for on either the left or the right side
+                            var nObj = state.objects[state.stacks[col + 1][row]] || state.objects[state.stacks[col - 1][row]];
+                            if (nObj != undefined) {
+                                if (descriptionMatch(obj.location.entity.object, nObj)) {
+                                    objects.push(item);
+                                }
+                            }
+                            break;
+                        case "inside":
+                            var uObj = (row == 0) ? { form: "floor" } : state.objects[stack[row - 1]];
+                            if (descriptionMatch(obj.location.entity.object, uObj)) {
+                                objects.push(item);
+                            }
+                            break;
+                        case "ontop":
+                            console.log("HEAHSSE");
+                            var uObj = (row == 0) ? { form: "floor" } : state.objects[stack[row - 1]];
+                            if (descriptionMatch(obj.location.entity.object, uObj)) {
+                                console.log("I WAS HERE");
+                                objects.push(item);
+                            }
+                            break;
+                        default:
                             objects.push(item);
                             break;
-                        }
                     }
                 }
-                if (col < state.stacks.length - 1) {
-                    var rightObj = state.stacks[col + 1][row];
-                    if (rightObj !== undefined) {
-                        if (descriptionMatch(obj.location.entity.object, rightObj)) {
-                            objects.push(item);
-                            break;
-                        }
-                    }
-                }
-                console.log("DSKAODSKAO");
             }
         }
     }
-    /*
-    state.stacks.forEach(function (stack) {
-        stack.forEach(function (item) {
-            if ((obj.color == state.objects[item].color || obj.color == null)
-                && (obj.size == state.objects[item].size || obj.size == null)
-                && (obj.form == state.objects[item].form || obj.form == "anyform")
-                && (obj.location.relation == "beside" && )) {
-                objects.push(item);
-            }
-        })
-    });
-    */
     return objects;
 }
 function descriptionMatch(obj, stateObject) {
     return (obj.color == stateObject.color || obj.color == null)
         && (obj.size == stateObject.size || obj.size == null)
-        && (obj.form == stateObject.form || obj.form == "anyform");
+        && (obj.form == stateObject.form || (obj.form == "anyform" && stateObject.form != "floor"));
 }
 function isEmpty(stacks, obj) {
     for (var i = 0; i < stacks.length; i++) {
