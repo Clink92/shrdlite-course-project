@@ -109,32 +109,32 @@ module Interpreter {
     }
 
     const RELATION = {
-        ontop: 'ontop',
-        inside: 'inside',
-        above: 'above',
-        under: 'under',
-        beside: 'beside',
-        leftof: 'leftof',
-        rightof: 'rightof'
+        ontop:      'ontop',
+        inside:     'inside',
+        above:      'above',
+        under:      'under',
+        beside:     'beside',
+        leftof:     'leftof',
+        rightof:    'rightof'
     };
 
     const FORM = {
-        brick: 'brick',
-        plank: 'plank',
-        ball: 'ball',
-        pyramid: 'pyramid',
-        box: 'box',
-        table: 'table'
+        brick:      'brick',
+        plank:      'plank',
+        ball:       'ball',
+        pyramid:    'pyramid',
+        box:        'box',
+        table:      'table'
     };
 
 
     const COLOR = {
-        red: 'red',
-        black: 'black',
-        blue: 'blue',
-        green: 'green',
+        red:    'red',
+        black:  'black',
+        blue:   'blue',
+        green:  'green',
         yellow: 'yellow',
-        white: 'white'
+        white:  'white'
     };
 
 
@@ -149,7 +149,7 @@ module Interpreter {
 
         let interpretation : DNFFormula = [];
         let location : Parser.Location = cmd.location;
-        let objects : string[] = getObjects(cmd.entity, state);
+        let objects : string[] = interpretEntity(cmd.entity, state);
 
         // if there is no location we go through all the objects and assume we just pick them up
         if (!location) {
@@ -158,7 +158,7 @@ module Interpreter {
             });
         }
         else {
-            var locationObjects : string[] = getObjects(location.entity, state);
+            var locationObjects : string[] = interpretEntity(location.entity, state);
 
             objects.forEach((obj) => {
                 locationObjects.forEach((locObj) => {
@@ -174,6 +174,25 @@ module Interpreter {
                                 let stateLocObj : Parser.Object = state.objects[locObj];
 
                                 // Depending on the type of relationship we define different laws
+                                /*
+                                 Physical laws
+
+                                 The world is ruled by physical laws that constrain the placement and movement of the objects:
+
+                                     The floor can support at most N objects (beside each other).
+                                     All objects must be supported by something.
+                                     The arm can only hold one object at the time.
+                                     The arm can only pick up free objects.
+                                     Objects are “inside” boxes, but “ontop” of other objects.
+                                     Balls must be in boxes or on the floor, otherwise they roll away.
+                                     Balls cannot support anything.
+                                     Small objects cannot support large objects.
+                                     Boxes cannot contain pyramids, planks or boxes of the same size.
+                                     Small boxes cannot be supported by small bricks or pyramids.
+                                     Large boxes cannot be supported by large pyramids.
+                                     There is an example world in the project template called “Impossible”, which gives examples of bricks that break the physical laws in some way.
+
+                                 */
                                 switch (location.relation) {
                                     case RELATION.ontop:
                                         if (stateObj.form == "ball" && stateLocObj.form == "table") break;
@@ -203,12 +222,12 @@ module Interpreter {
      * @param state
      * @returns {string[]}
      */
-    function getObjects(entity : Parser.Entity, state : WorldState) : string[] {
+    function interpretEntity(entity : Parser.Entity, state : WorldState) : string[] {
         var obj : Parser.Object = entity.object;
         var objects : string[] = [];
 
         // If we search for a floor we add it
-        if (objectMatch(obj, {form: "floor"})) {
+        if (interpretObject(obj, {form: "floor"})) {
             objects.push("floor");
             return objects;
         }
@@ -220,17 +239,15 @@ module Interpreter {
             for (var row : number = 0; row < stack.length; row++) {
                 var item : string = stack[row];
 
-                if (objectMatch(obj, state.objects[item])) {
+                if (interpretObject(obj, state.objects[item])) {
                     objects.push(item);
                 }
-                else if (obj.location && objectMatch(obj.object, state.objects[item])) {
+                else if (obj.location && interpretObject(obj.object, state.objects[item])) {
                     // If there is a location defined and that location object matches the state object
                     // we handle the relation
-
-                    if (locationMatch(obj.location, state, col, row)) {
+                    if (interpretLocation(obj.location, state, col, row)) {
                         objects.push(item);
                     }
-
                 }
             }
         }
@@ -238,57 +255,87 @@ module Interpreter {
         return objects;
     }
 
-    function locationMatch(location : Parser.Location, state : WorldState, col : number, row : number) : boolean{
+    function interpretLocation(location : Parser.Location, state : WorldState, col : number, row : number) : boolean{
         let obj : Parser.Object;
         let nCol : number;
         let nRow : number;
-        let match : boolean;
+        let match : boolean = false;
 
         // If there is a location defined and that location object matches the state object
         // we handle the relation
 
+        // We make recursive calls on the location match until there are no more locations, if there is a match on
+        // the final location we return true
+
         switch (location.relation) {
-
             case RELATION.beside:
-                nCol = col - 1;
-                nRow = row;
-                obj = state.objects[state.stacks[nCol][nRow]];
-                match = objectMatch(location.entity.object, obj);
-                if(match) break;
+                // x is beside y if they are in adjacent stacks.
+                if(col < state.stacks.length){
+                    nCol = col + 1;
+                    nRow = row;
+                    obj = state.objects[state.stacks[nCol][nRow]];
+                    match = interpretObject(location.entity.object, obj);
+                }
 
-                nCol = col + 1;
-                nRow = row;
-                obj = state.objects[state.stacks[nCol][nRow]];
-                match = objectMatch(location.entity.object, obj);
+
+                if(!match && col > 0){
+                    nCol = col - 1;
+                    nRow = row;
+                    obj = state.objects[state.stacks[nCol][nRow]];
+                    match = interpretObject(location.entity.object, obj);
+                }
+
                 break;
 
             case RELATION.leftof:
-                nCol = col - 1;
-                nRow = row;
-                obj = state.objects[state.stacks[nCol][nRow]];
-                match = objectMatch(location.entity.object, obj);
+                // x is left of y if it is somewhere to the left.
+                if(col > 0){
+                    nCol = col - 1;
+                    nRow = row;
+                    obj = state.objects[state.stacks[nCol][nRow]];
+                    match = interpretObject(location.entity.object, obj);
+                }
                 break;
 
             case RELATION.rightof:
-                nCol = col + 1;
-                nRow = row;
-                obj = state.objects[state.stacks[nCol][nRow]];
-                match = objectMatch(location.entity.object, obj);
+                // x is right of y if it is somewhere to the right.
+                if(col < (state.stacks.length - 1)){
+                    nCol = col + 1;
+                    nRow = row;
+                    obj = state.objects[state.stacks[nCol][nRow]];
+                    match = interpretObject(location.entity.object, obj);
+                }
                 break;
 
             case RELATION.ontop:
             case RELATION.inside:
+                //x is on top of y if it is directly on top – the same relation is called inside if y is a box.
                 nCol = col;
                 nRow = row - 1;
                 obj = (row == 0) ? {form: "floor"} : state.objects[state.stacks[nCol][nRow]];
-                match = objectMatch(location.entity.object, obj);
+                match = interpretObject(location.entity.object, obj);
                 break;
+
+            case RELATION.under:
+                // x is under y if it is somewhere below.
+                if(row < (state.stacks[col].length - 1)){
+                    nCol = col;
+                    nRow = row + 1;
+                    obj = state.objects[state.stacks[nCol][nRow]];
+                    match = interpretObject(location.entity.object, obj);
+                }
+                break;
+
+            case RELATION.above:
+                // x is above y if it is somewhere above.
+                break;
+
             default:
                 break;
         }
 
         if(match){
-            if(location.entity.object.location) locationMatch(location.entity.object.location, state, nCol, nRow);
+            if(location.entity.object.location) interpretLocation(location.entity.object.location, state, nCol, nRow);
             return true;
         } else {
             return false;
@@ -320,8 +367,8 @@ module Interpreter {
      * @param stateObject
      * @returns {boolean}
      */
-    function objectMatch(obj:Parser.Object, stateObject:Parser.Object):boolean {
-        if(!obj) return false;
+    function interpretObject(obj:Parser.Object, stateObject:Parser.Object):boolean {
+        if(!obj || !stateObject) return false;
         return (obj.color == stateObject.color || obj.color == null)
             && (obj.size == stateObject.size || obj.size == null)
             && (obj.form == stateObject.form || (obj.form == "anyform" && stateObject.form != "floor"));
@@ -330,8 +377,8 @@ module Interpreter {
     /**
      *  Get the enum size according to the string that is passed into the function
      *
-     * @param string
-     * @returns {Interpreter.SIZE}
+     * @param size string
+     * @returns {SIZE}
      */
     function getSize(size : string) : SIZE {
         switch (size) {
