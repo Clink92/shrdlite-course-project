@@ -303,22 +303,27 @@ module Interpreter {
 
             case RELATION.leftof:
                 // x is left of y if it is somewhere to the left.
-                if(col > 0){
-                    nCol = col - 1;
+                for(var dCol : number = col; dCol > 0; dCol--) {
+                    nCol = dCol - 1;
                     nRow = row;
                     obj = state.objects[state.stacks[nCol][nRow]];
                     match = interpretObject(location.entity.object, obj);
+
+                    if(match) break;
                 }
                 break;
 
             case RELATION.rightof:
                 // x is right of y if it is somewhere to the right.
-                if(col < (state.stacks.length - 1)){
-                    nCol = col + 1;
+                for (var dCol : number = col; dCol < (state.stacks.length - 1); dCol++) {
+                    nCol = dCol + 1;
                     nRow = row;
                     obj = state.objects[state.stacks[nCol][nRow]];
                     match = interpretObject(location.entity.object, obj);
+
+                    if(match) break;
                 }
+
                 break;
 
             case RELATION.ontop:

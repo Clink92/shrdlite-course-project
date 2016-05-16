@@ -2648,29 +2648,6 @@ var Interpreter;
         leftof: 'leftof',
         rightof: 'rightof'
     };
-    function checkOnTop(obj, locObj) {
-        // Balls cannot support anything.
-        if (locObj.form === FORM.ball)
-            return false;
-        //Small objects cannot support large objects.
-        if (lte(obj.size, locObj.size)) {
-            switch (obj.form) {
-                case FORM.ball:
-                    return locObj.form === FORM.box || locObj.form === FORM.floor;
-                case FORM.box:
-                    // Boxes cannot contain pyramids, planks or boxes of the same size.
-                    if (equalSize(obj.size, locObj.size)) {
-                        return !(locObj.form === FORM.pyramid ||
-                            locObj.form === FORM.plank ||
-                            locObj.form === FORM.box);
-                    }
-                    return true;
-                default:
-                    return true;
-            }
-        }
-        return false;
-    }
     var FORM = {
         brick: 'brick',
         plank: 'plank',
@@ -2723,23 +2700,20 @@ var Interpreter;
                              Physical laws
 
                              The world is ruled by physical laws that constrain the placement and movement of the objects:
-
                                  The floor can support at most N objects (beside each other).
                                  All objects must be supported by something.
-
                                  The arm can only pick up free objects.
-
-                                 Small boxes cannot be supported by small bricks or pyramids.
-                                 Large boxes cannot be supported by large pyramids.
                              */
+                            // TODO: Get an answer to the question if we can assume that the world is in a correct state to begin with
+                            // if that is true we only have to check the the relationship between the subject and the location
                             switch (location.relation) {
                                 case RELATION.inside:
                                 case RELATION.ontop:
-                                    if (checkOnTop(stateObj, stateLocObj))
+                                    if (checkPhysicalLaws(stateObj, stateLocObj))
                                         interpretation.push(getGoal(true, location.relation, [obj, locObj]));
                                     break;
                                 case RELATION.under:
-                                    if (checkOnTop(stateLocObj, stateObj))
+                                    if (checkPhysicalLaws(stateLocObj, stateObj))
                                         interpretation.push(getGoal(true, location.relation, [obj, locObj]));
                                     break;
                                 default:
@@ -2790,6 +2764,20 @@ var Interpreter;
         }
         return objects;
     }
+    /**
+     * A check to see if the description matches an object
+     *
+     * @param obj
+     * @param stateObject
+     * @returns {boolean}
+     */
+    function interpretObject(obj, stateObject) {
+        if (!obj || !stateObject)
+            return false;
+        return (obj.color == stateObject.color || obj.color == null)
+            && (obj.size == stateObject.size || obj.size == null)
+            && (obj.form == stateObject.form || (obj.form == "anyform" && stateObject.form != "floor"));
+    }
     function interpretLocation(location, state, col, row) {
         var obj;
         var nCol;
@@ -2817,20 +2805,24 @@ var Interpreter;
                 break;
             case RELATION.leftof:
                 // x is left of y if it is somewhere to the left.
-                if (col > 0) {
-                    nCol = col - 1;
+                for (var dCol = col; dCol > 0; dCol--) {
+                    nCol = dCol - 1;
                     nRow = row;
                     obj = state.objects[state.stacks[nCol][nRow]];
                     match = interpretObject(location.entity.object, obj);
+                    if (match)
+                        break;
                 }
                 break;
             case RELATION.rightof:
                 // x is right of y if it is somewhere to the right.
-                if (col < (state.stacks.length - 1)) {
-                    nCol = col + 1;
+                for (var dCol = col; dCol < (state.stacks.length - 1); dCol++) {
+                    nCol = dCol + 1;
                     nRow = row;
                     obj = state.objects[state.stacks[nCol][nRow]];
                     match = interpretObject(location.entity.object, obj);
+                    if (match)
+                        break;
                 }
                 break;
             case RELATION.ontop:
@@ -2865,6 +2857,37 @@ var Interpreter;
             return false;
         }
     }
+    function checkPhysicalLaws(obj, locObj) {
+        // Balls cannot support anything.
+        if (locObj.form === FORM.ball)
+            return false;
+        //Small objects cannot support large objects.
+        if (lte(obj.size, locObj.size)) {
+            switch (obj.form) {
+                case FORM.ball:
+                    return locObj.form === FORM.box || locObj.form === FORM.floor;
+                case FORM.box:
+                    if (equalSize(obj.size, locObj.size)) {
+                        // Boxes cannot contain pyramids, planks or boxes of the same size.
+                        return !(locObj.form === FORM.pyramid ||
+                            locObj.form === FORM.plank ||
+                            locObj.form === FORM.box);
+                    }
+                    else if (getSize(obj.size) === SIZE.small) {
+                        // Small boxes cannot be supported by small bricks or pyramids.
+                        return !(locObj.form === FORM.brick || locObj.form === FORM.pyramid);
+                    }
+                    else if (getSize(obj.size) == SIZE.large) {
+                        // Large boxes cannot be supported by large pyramids.
+                        return !(locObj.form === FORM.pyramid);
+                    }
+                    return true;
+                default:
+                    return true;
+            }
+        }
+        return false;
+    }
     /**
      * Returns a goal for the DNF
      *
@@ -2881,20 +2904,6 @@ var Interpreter;
                 args: args
             }
         ];
-    }
-    /**
-     * A check to see if the description matches an object
-     *
-     * @param obj
-     * @param stateObject
-     * @returns {boolean}
-     */
-    function interpretObject(obj, stateObject) {
-        if (!obj || !stateObject)
-            return false;
-        return (obj.color == stateObject.color || obj.color == null)
-            && (obj.size == stateObject.size || obj.size == null)
-            && (obj.form == stateObject.form || (obj.form == "anyform" && stateObject.form != "floor"));
     }
     /**
      *  Get the enum size according to the string that is passed into the function
