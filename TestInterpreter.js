@@ -55,7 +55,6 @@ if (typeof require !== 'undefined') {
 ///<reference path="World.ts"/>
 ///<reference path="Parser.ts"/>
 ///<reference path="lib/node.d.ts"/>
-var extend = require("util").extend;
 /**
  * Interpreter module
  *
@@ -126,7 +125,13 @@ var Interpreter;
     Interpreter.stringifyLiteral = stringifyLiteral;
     //////////////////////////////////////////////////////////////////////
     // private functions
-    var RELATIONS = {
+    var SIZE;
+    (function (SIZE) {
+        SIZE[SIZE["small"] = 0] = "small";
+        SIZE[SIZE["large"] = 1] = "large";
+        SIZE[SIZE["undefined"] = 2] = "undefined";
+    })(SIZE || (SIZE = {}));
+    var RELATION = {
         ontop: 'ontop',
         inside: 'inside',
         above: 'above',
@@ -134,6 +139,22 @@ var Interpreter;
         beside: 'beside',
         leftof: 'leftof',
         rightof: 'rightof'
+    };
+    var FORM = {
+        brick: 'brick',
+        plank: 'plank',
+        ball: 'ball',
+        pyramid: 'pyramid',
+        box: 'box',
+        table: 'table'
+    };
+    var COLOR = {
+        red: 'red',
+        black: 'black',
+        blue: 'blue',
+        green: 'green',
+        yellow: 'yellow',
+        white: 'white'
     };
     /**
      *
@@ -166,7 +187,7 @@ var Interpreter;
                                 var stateLocObj = state.objects[locObj];
                                 // Depending on the type of relationship we define different laws
                                 switch (location.relation) {
-                                    case RELATIONS.ontop:
+                                    case RELATION.ontop:
                                         if (stateObj.form == "ball" && stateLocObj.form == "table")
                                             break;
                                         interpretation.push(getGoal(true, location.relation, [obj, locObj]));
@@ -197,7 +218,7 @@ var Interpreter;
         var obj = entity.object;
         var objects = [];
         // If we search for a floor we add it
-        if (descriptionMatch(obj, { form: "floor" })) {
+        if (objectMatch(obj, { form: "floor" })) {
             objects.push("floor");
             return objects;
         }
@@ -206,38 +227,77 @@ var Interpreter;
             var stack = state.stacks[col];
             for (var row = 0; row < stack.length; row++) {
                 var item = stack[row];
-                if (descriptionMatch(obj, state.objects[item])) {
+                if (objectMatch(obj, state.objects[item])) {
                     objects.push(item);
                 }
-                else if (obj.location !== undefined && descriptionMatch(obj.object, state.objects[item])) {
+                else if (obj.location && objectMatch(obj.object, state.objects[item])) {
                     // If there is a location defined and that location object matches the state object
                     // we handle the relation
-                    var rObj = void 0;
-                    var location_1 = obj.location;
-                    // If there is a location defined and that location object matches the state object
-                    // we handle the relation
-                    switch (location_1.relation) {
-                        case RELATIONS.beside:
-                            // for the object to be relevant it needs to have what we search for on either
-                            // the left or the right side
-                            rObj = state.objects[state.stacks[col + 1][row]]
-                                || state.objects[state.stacks[col - 1][row]];
-                            break;
-                        case RELATIONS.ontop:
-                        case RELATIONS.inside:
-                            rObj = (row == 0) ? { form: "floor" } : state.objects[stack[row - 1]];
-                            break;
-                        default:
-                            break;
-                    }
-                    // If the relation object is defined and it matches the description we add it to the objects
-                    if (rObj && descriptionMatch(location_1.entity.object, rObj)) {
+                    if (locationMatch(obj.location, state, col, row)) {
                         objects.push(item);
                     }
                 }
             }
         }
         return objects;
+    }
+    function locationMatch(location, state, col, row) {
+        var obj;
+        var nCol;
+        var nRow;
+        var match;
+        // If there is a location defined and that location object matches the state object
+        // we handle the relation
+
+        console.log(location.relation);
+        switch (location.relation) {
+            case RELATION.beside:
+                console.log("I am here");
+                nCol = col - 1;
+                nRow = row;
+                obj = state.objects[state.stacks[nCol][nRow]];
+                match = objectMatch(location.entity.object, obj);
+
+                console.log("PRUTT", match);
+                console.log("WTF");
+                if (match) break;
+
+                nCol = col + 1;
+                nRow = row;
+                obj = state.objects[state.stacks[nCol][nRow]];
+                match = objectMatch(location.entity.object, obj);
+                console.log("PRUTT", match);
+                break;
+            case RELATION.leftof:
+                nCol = col - 1;
+                nRow = row;
+                obj = state.objects[state.stacks[nCol][nRow]];
+                match = objectMatch(location.entity.object, obj);
+                break;
+            case RELATION.rightof:
+                nCol = col + 1;
+                nRow = row;
+                obj = state.objects[state.stacks[nCol][nRow]];
+                match = objectMatch(location.entity.object, obj);
+                break;
+            case RELATION.ontop:
+            case RELATION.inside:
+                nCol = col;
+                nRow = row - 1;
+                obj = (row == 0) ? { form: "floor" } : state.objects[state.stacks[nCol][nRow]];
+                match = objectMatch(location.entity.object, obj);
+                break;
+            default:
+                break;
+        }
+        if (match) {
+            if (location.entity.object.location)
+                locationMatch(location.entity.object.location, state, nCol, nRow);
+            return true;
+        }
+        else {
+            return false;
+        }
     }
     /**
      * Returns a goal for the DNF
@@ -263,17 +323,13 @@ var Interpreter;
      * @param stateObject
      * @returns {boolean}
      */
-    function descriptionMatch(obj, stateObject) {
+    function objectMatch(obj, stateObject) {
+        if (!obj || !stateObject)
+            return false;
         return (obj.color == stateObject.color || obj.color == null)
             && (obj.size == stateObject.size || obj.size == null)
             && (obj.form == stateObject.form || (obj.form == "anyform" && stateObject.form != "floor"));
     }
-    var SIZE;
-    (function (SIZE) {
-        SIZE[SIZE["small"] = 0] = "small";
-        SIZE[SIZE["large"] = 1] = "large";
-        SIZE[SIZE["undefined"] = 2] = "undefined";
-    })(SIZE || (SIZE = {}));
     /**
      *  Get the enum size according to the string that is passed into the function
      *
@@ -312,10 +368,10 @@ var Interpreter;
         // We create an array and the check if the relation is contained within that
         // array.
         var arr = [
-            RELATIONS.ontop,
-            RELATIONS.above,
-            RELATIONS.inside,
-            RELATIONS.under
+            RELATION.ontop,
+            RELATION.above,
+            RELATION.inside,
+            RELATION.under
         ];
         return (arr.indexOf(relation) === -1) ? false : true;
     }

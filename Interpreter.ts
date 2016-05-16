@@ -6,8 +6,6 @@
 import DNFFormula = Interpreter.DNFFormula;
 import Entity = Parser.Entity;
 
-let extend = require("util").extend;
-
 /**
  * Interpreter module
  *
@@ -104,7 +102,13 @@ module Interpreter {
     //////////////////////////////////////////////////////////////////////
     // private functions
 
-    const RELATIONS = {
+    enum SIZE {
+        small,
+        large,
+        undefined
+    }
+
+    const RELATION = {
         ontop: 'ontop',
         inside: 'inside',
         above: 'above',
@@ -113,6 +117,26 @@ module Interpreter {
         leftof: 'leftof',
         rightof: 'rightof'
     };
+
+    const FORM = {
+        brick: 'brick',
+        plank: 'plank',
+        ball: 'ball',
+        pyramid: 'pyramid',
+        box: 'box',
+        table: 'table'
+    };
+
+
+    const COLOR = {
+        red: 'red',
+        black: 'black',
+        blue: 'blue',
+        green: 'green',
+        yellow: 'yellow',
+        white: 'white'
+    };
+
 
     /**
      *
@@ -151,7 +175,7 @@ module Interpreter {
 
                                 // Depending on the type of relationship we define different laws
                                 switch (location.relation) {
-                                    case RELATIONS.ontop:
+                                    case RELATION.ontop:
                                         if (stateObj.form == "ball" && stateLocObj.form == "table") break;
                                         interpretation.push(getGoal(true, location.relation, [obj, locObj]));
                                         break;
@@ -184,7 +208,7 @@ module Interpreter {
         var objects : string[] = [];
 
         // If we search for a floor we add it
-        if (descriptionMatch(obj, {form: "floor"})) {
+        if (objectMatch(obj, {form: "floor"})) {
             objects.push("floor");
             return objects;
         }
@@ -196,35 +220,14 @@ module Interpreter {
             for (var row : number = 0; row < stack.length; row++) {
                 var item : string = stack[row];
 
-                if (descriptionMatch(obj, state.objects[item])) {
+                if (objectMatch(obj, state.objects[item])) {
                     objects.push(item);
                 }
-                else if (obj.location !== undefined && descriptionMatch(obj.object, state.objects[item])) {
+                else if (obj.location && objectMatch(obj.object, state.objects[item])) {
                     // If there is a location defined and that location object matches the state object
                     // we handle the relation
 
-                    let rObj : Parser.Object;
-                    let location : Parser.Location = obj.location;
-
-                    // If there is a location defined and that location object matches the state object
-                    // we handle the relation
-                    switch (location.relation) {
-                        case RELATIONS.beside:
-                            // for the object to be relevant it needs to have what we search for on either
-                            // the left or the right side
-                            rObj = state.objects[state.stacks[col + 1][row]]
-                                || state.objects[state.stacks[col - 1][row]];
-                            break;
-                        case RELATIONS.ontop:
-                        case RELATIONS.inside:
-                            rObj = (row == 0) ? {form: "floor"} : state.objects[stack[row - 1]];
-                            break;
-                        default:
-                            break;
-                    }
-
-                    // If the relation object is defined and it matches the description we add it to the objects
-                    if (rObj && descriptionMatch(location.entity.object, rObj)) {
+                    if (locationMatch(obj.location, state, col, row)) {
                         objects.push(item);
                     }
 
@@ -233,6 +236,63 @@ module Interpreter {
         }
 
         return objects;
+    }
+
+    function locationMatch(location : Parser.Location, state : WorldState, col : number, row : number) : boolean{
+        let obj : Parser.Object;
+        let nCol : number;
+        let nRow : number;
+        let match : boolean;
+
+        // If there is a location defined and that location object matches the state object
+        // we handle the relation
+
+        switch (location.relation) {
+
+            case RELATION.beside:
+                nCol = col - 1;
+                nRow = row;
+                obj = state.objects[state.stacks[nCol][nRow]];
+                match = objectMatch(location.entity.object, obj);
+                if(match) break;
+
+                nCol = col + 1;
+                nRow = row;
+                obj = state.objects[state.stacks[nCol][nRow]];
+                match = objectMatch(location.entity.object, obj);
+                break;
+
+            case RELATION.leftof:
+                nCol = col - 1;
+                nRow = row;
+                obj = state.objects[state.stacks[nCol][nRow]];
+                match = objectMatch(location.entity.object, obj);
+                break;
+
+            case RELATION.rightof:
+                nCol = col + 1;
+                nRow = row;
+                obj = state.objects[state.stacks[nCol][nRow]];
+                match = objectMatch(location.entity.object, obj);
+                break;
+
+            case RELATION.ontop:
+            case RELATION.inside:
+                nCol = col;
+                nRow = row - 1;
+                obj = (row == 0) ? {form: "floor"} : state.objects[state.stacks[nCol][nRow]];
+                match = objectMatch(location.entity.object, obj);
+                break;
+            default:
+                break;
+        }
+
+        if(match){
+            if(location.entity.object.location) locationMatch(location.entity.object.location, state, nCol, nRow);
+            return true;
+        } else {
+            return false;
+        }
     }
 
     /**
@@ -260,16 +320,11 @@ module Interpreter {
      * @param stateObject
      * @returns {boolean}
      */
-    function descriptionMatch(obj:Parser.Object, stateObject:Parser.Object):boolean {
+    function objectMatch(obj:Parser.Object, stateObject:Parser.Object):boolean {
+        if(!obj) return false;
         return (obj.color == stateObject.color || obj.color == null)
             && (obj.size == stateObject.size || obj.size == null)
             && (obj.form == stateObject.form || (obj.form == "anyform" && stateObject.form != "floor"));
-    }
-
-    enum SIZE {
-        small,
-        large,
-        undefined
     }
 
     /**
@@ -312,10 +367,10 @@ module Interpreter {
         // We create an array and the check if the relation is contained within that
         // array.
         let arr = [
-            RELATIONS.ontop,
-            RELATIONS.above,
-            RELATIONS.inside,
-            RELATIONS.under
+            RELATION.ontop,
+            RELATION.above,
+            RELATION.inside,
+            RELATION.under
         ];
 
         return (arr.indexOf(relation) === -1) ? false : true;
