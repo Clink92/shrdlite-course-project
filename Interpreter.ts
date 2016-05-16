@@ -121,32 +121,6 @@ module Interpreter {
         rightof:    'rightof'
     };
 
-
-
-    function checkOnTop(obj : Parser.Object, locObj : Parser.Object) : boolean {
-        // Balls cannot support anything.
-        if(locObj.form === FORM.ball) return false;
-        //Small objects cannot support large objects.
-        if(lte(obj.size, locObj.size)){
-            switch (obj.form) {
-                case FORM.ball:
-                    return locObj.form === FORM.box || locObj.form === FORM.floor;
-                case FORM.box:
-                    // Boxes cannot contain pyramids, planks or boxes of the same size.
-                    if(equalSize(obj.size, locObj.size)){
-                        return !(locObj.form === FORM.pyramid ||
-                        locObj.form === FORM.plank ||
-                        locObj.form === FORM.box);
-                    }
-                    return true;
-                default:
-                    return true;
-            }
-        }
-        return false;
-    }
-
-
     const FORM = {
         brick:      'brick',
         plank:      'plank',
@@ -209,14 +183,9 @@ module Interpreter {
                              Physical laws
 
                              The world is ruled by physical laws that constrain the placement and movement of the objects:
-
                                  The floor can support at most N objects (beside each other).
                                  All objects must be supported by something.
-
                                  The arm can only pick up free objects.
-
-                                 Small boxes cannot be supported by small bricks or pyramids.
-                                 Large boxes cannot be supported by large pyramids.
                              */
 
 
@@ -225,10 +194,10 @@ module Interpreter {
                             switch (location.relation) {
                                 case RELATION.inside:
                                 case RELATION.ontop:
-                                    if(checkOnTop(stateObj, stateLocObj)) interpretation.push(getGoal(true, location.relation, [obj, locObj]));
+                                    if(checkPhysicalLaws(stateObj, stateLocObj)) interpretation.push(getGoal(true, location.relation, [obj, locObj]));
                                     break;
                                 case RELATION.under:
-                                    if(checkOnTop(stateLocObj, stateObj)) interpretation.push(getGoal(true, location.relation, [obj, locObj]));
+                                    if(checkPhysicalLaws(stateLocObj, stateObj)) interpretation.push(getGoal(true, location.relation, [obj, locObj]));
                                     break;
                                 default:
                                     interpretation.push(getGoal(true, location.relation, [obj, locObj]));
@@ -284,6 +253,20 @@ module Interpreter {
         }
 
         return objects;
+    }
+
+    /**
+     * A check to see if the description matches an object
+     *
+     * @param obj
+     * @param stateObject
+     * @returns {boolean}
+     */
+    function interpretObject(obj:Parser.Object, stateObject:Parser.Object):boolean {
+        if(!obj || !stateObject) return false;
+        return (obj.color == stateObject.color || obj.color == null)
+            && (obj.size == stateObject.size || obj.size == null)
+            && (obj.form == stateObject.form || (obj.form == "anyform" && stateObject.form != "floor"));
     }
 
     function interpretLocation(location : Parser.Location, state : WorldState, col : number, row : number) : boolean{
@@ -373,6 +356,41 @@ module Interpreter {
         }
     }
 
+    function checkPhysicalLaws(obj : Parser.Object, locObj : Parser.Object) : boolean {
+        // Balls cannot support anything.
+        if(locObj.form === FORM.ball) return false;
+
+        //Small objects cannot support large objects.
+        if(lte(obj.size, locObj.size)){
+
+            switch (obj.form) {
+                case FORM.ball:
+                    return locObj.form === FORM.box || locObj.form === FORM.floor;
+
+                case FORM.box:
+                    if(equalSize(obj.size, locObj.size)){
+                        // Boxes cannot contain pyramids, planks or boxes of the same size.
+                        return !(locObj.form === FORM.pyramid ||
+                        locObj.form === FORM.plank ||
+                        locObj.form === FORM.box);
+                    } else if(getSize(obj.size) === SIZE.small) {
+                        // Small boxes cannot be supported by small bricks or pyramids.
+                        return !(locObj.form === FORM.brick || locObj.form === FORM.pyramid);
+                    } else if(getSize(obj.size) == SIZE.large) {
+                        // Large boxes cannot be supported by large pyramids.
+                        return !(locObj.form === FORM.pyramid);
+                    }
+
+                    return true;
+
+                default:
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
     /**
      * Returns a goal for the DNF
      *
@@ -389,20 +407,6 @@ module Interpreter {
                 args: args
             }
         ];
-    }
-
-    /**
-     * A check to see if the description matches an object
-     *
-     * @param obj
-     * @param stateObject
-     * @returns {boolean}
-     */
-    function interpretObject(obj:Parser.Object, stateObject:Parser.Object):boolean {
-        if(!obj || !stateObject) return false;
-        return (obj.color == stateObject.color || obj.color == null)
-            && (obj.size == stateObject.size || obj.size == null)
-            && (obj.form == stateObject.form || (obj.form == "anyform" && stateObject.form != "floor"));
     }
 
     /**
