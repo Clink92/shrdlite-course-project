@@ -1,12 +1,7 @@
 ///<reference path="World.ts"/>
 ///<reference path="Parser.ts"/>
 ///<reference path="lib/collections.ts"/>
-
-
-import DNFFormula = Interpreter.DNFFormula;
-import Entity = Parser.Entity;
-import Dictionary = collections.Dictionary;
-
+var Dictionary = collections.Dictionary;
 /**
  * Interpreter module
  *
@@ -30,113 +25,81 @@ import Dictionary = collections.Dictionary;
  * the core interpretation function, namely `interpretCommand`, which produces a
  * single interpretation for a single command.
  */
-module Interpreter {
-
-    //////////////////////////////////////////////////////////////////////
-    // exported functions, classes and interfaces/types
-
-    import Command = Parser.Command;
-    import equals = collections.arrays.equals;
+var Interpreter;
+(function (Interpreter) {
     /**
      Top-level function for the Interpreter. It calls `interpretCommand` for each possible parse of the command. No need to change this one.
      * @param parses List of parses produced by the Parser.
      * @param currentState The current state of the world.
      * @returns Augments ParseResult with a list of interpretations. Each interpretation is represented by a list of Literals.
      */
-    export function interpret(parses:Parser.ParseResult[], currentState:WorldState):InterpretationResult[] {
-        var errors:Error[] = [];
-        var interpretations:InterpretationResult[] = [];
-
-        parses.forEach((parseresult) => {
+    function interpret(parses, currentState) {
+        var errors = [];
+        var interpretations = [];
+        parses.forEach(function (parseresult) {
             try {
-                var result:InterpretationResult = <InterpretationResult>parseresult;
+                var result = parseresult;
                 result.interpretation = interpretCommand(result.parse, currentState);
                 // NOTE: We did not now what to return if there was no result so we return null, if so we do not add it
-                if (result.interpretation) interpretations.push(result);
-            } catch (err) {
+                if (result.interpretation)
+                    interpretations.push(result);
+            }
+            catch (err) {
                 errors.push(err);
             }
         });
         if (interpretations.length) {
             return interpretations;
-        } else {
+        }
+        else {
             // only throw the first error found
             throw errors[0];
         }
     }
-
-    export interface InterpretationResult extends Parser.ParseResult {
-        interpretation:DNFFormula;
-    }
-
-    export type DNFFormula = Conjunction[];
-    type Conjunction = Literal[];
-
-    /**
-     * A Literal represents a relation that is intended to
-     * hold among some objects.
-     */
-    export interface Literal {
-        /** Whether this literal asserts the relation should hold
-         * (true polarity) or not (false polarity). For example, we
-         * can specify that "a" should *not* be on top of "b" by the
-         * literal {polarity: false, relation: "ontop", args:
-	 * ["a","b"]}.
-         */
-        polarity:boolean;
-        /** The name of the relation in question. */
-        relation:string;
-        /** The arguments to the relation. Usually these will be either objects
-         * or special strings such as "floor" or "floor-N" (where N is a column) */
-        args:string[];
-    }
-
-    export function stringify(result:InterpretationResult):string {
-        return result.interpretation.map((literals) => {
-            return literals.map((lit) => stringifyLiteral(lit)).join(" & ");
+    Interpreter.interpret = interpret;
+    function stringify(result) {
+        return result.interpretation.map(function (literals) {
+            return literals.map(function (lit) { return stringifyLiteral(lit); }).join(" & ");
             // return literals.map(stringifyLiteral).join(" & ");
         }).join(" | ");
     }
-
-    export function stringifyLiteral(lit:Literal):string {
+    Interpreter.stringify = stringify;
+    function stringifyLiteral(lit) {
         return (lit.polarity ? "" : "-") + lit.relation + "(" + lit.args.join(",") + ")";
     }
-
+    Interpreter.stringifyLiteral = stringifyLiteral;
     //////////////////////////////////////////////////////////////////////
     // private functions
-
-    enum SIZE {
-        small,
-        large,
-        undefined
-    }
-
-    const RELATION = {
-        ontop:      'ontop',
-        inside:     'inside',
-        above:      'above',
-        under:      'under',
-        beside:     'beside',
-        leftof:     'leftof',
-        rightof:    'rightof'
+    var SIZE;
+    (function (SIZE) {
+        SIZE[SIZE["small"] = 0] = "small";
+        SIZE[SIZE["large"] = 1] = "large";
+        SIZE[SIZE["undefined"] = 2] = "undefined";
+    })(SIZE || (SIZE = {}));
+    var RELATION = {
+        ontop: 'ontop',
+        inside: 'inside',
+        above: 'above',
+        under: 'under',
+        beside: 'beside',
+        leftof: 'leftof',
+        rightof: 'rightof'
     };
-
-
-
-    function checkOnTop(obj : Parser.Object, locObj : Parser.Object) : boolean {
+    function checkOnTop(obj, locObj) {
         // Balls cannot support anything.
-        if(locObj.form === FORM.ball) return false;
+        if (locObj.form === FORM.ball)
+            return false;
         //Small objects cannot support large objects.
-        if(lte(obj.size, locObj.size)){
+        if (lte(obj.size, locObj.size)) {
             switch (obj.form) {
                 case FORM.ball:
                     return locObj.form === FORM.box || locObj.form === FORM.floor;
                 case FORM.box:
                     // Boxes cannot contain pyramids, planks or boxes of the same size.
-                    if(equalSize(obj.size, locObj.size)){
+                    if (equalSize(obj.size, locObj.size)) {
                         return !(locObj.form === FORM.pyramid ||
-                        locObj.form === FORM.plank ||
-                        locObj.form === FORM.box);
+                            locObj.form === FORM.plank ||
+                            locObj.form === FORM.box);
                     }
                     return true;
                 default:
@@ -145,29 +108,23 @@ module Interpreter {
         }
         return false;
     }
-
-
-    const FORM = {
-        brick:      'brick',
-        plank:      'plank',
-        ball:       'ball',
-        pyramid:    'pyramid',
-        box:        'box',
-        table:      'table',
-        floor:      'floor'
+    var FORM = {
+        brick: 'brick',
+        plank: 'plank',
+        ball: 'ball',
+        pyramid: 'pyramid',
+        box: 'box',
+        table: 'table',
+        floor: 'floor'
     };
-
-
-    const COLOR = {
-        red:    'red',
-        black:  'black',
-        blue:   'blue',
-        green:  'green',
+    var COLOR = {
+        red: 'red',
+        black: 'black',
+        blue: 'blue',
+        green: 'green',
         yellow: 'yellow',
-        white:  'white'
+        white: 'white'
     };
-
-
     /**
      *
      *
@@ -175,35 +132,29 @@ module Interpreter {
      * @param state The current state of the world. Useful to look up objects in the world.
      * @returns A list of list of Literal, representing a formula in disjunctive normal form (disjunction of conjunctions). See the dummy interpetation returned in the code for an example, which means ontop(a,floor) AND holding(b).
      */
-    function interpretCommand(cmd : Parser.Command, state : WorldState) : DNFFormula {
-
-        let interpretation : DNFFormula = [];
-        let location : Parser.Location = cmd.location;
-        let objects : string[] = interpretEntity(cmd.entity, state);
-
+    function interpretCommand(cmd, state) {
+        var interpretation = [];
+        var location = cmd.location;
+        var objects = interpretEntity(cmd.entity, state);
         // if there is no location we go through all the objects and assume we just pick them up
         if (!location) {
-            objects.forEach((obj) => {
+            objects.forEach(function (obj) {
                 // The arm can only hold one object at the time.
-                if(!state.holding) interpretation.push(getGoal(true, "holding", [obj]));
+                if (!state.holding)
+                    interpretation.push(getGoal(true, "holding", [obj]));
             });
         }
         else {
-            var locationObjects : string[] = interpretEntity(location.entity, state);
-
-            objects.forEach((obj) => {
-                locationObjects.forEach((locObj) => {
+            var locationObjects = interpretEntity(location.entity, state);
+            objects.forEach(function (obj) {
+                locationObjects.forEach(function (locObj) {
                     if (state.objects[obj] !== state.objects[locObj]) {
-
                         // If the location is a floor we can always place the object there
                         // If we have a stack relationship we need to check that it fulfills the physical laws
                         if (locObj !== "floor" && checkStackRelation(location.relation)) {
-
                             // small objects cannot support large objects
-
-                            let stateObj : Parser.Object = state.objects[obj];
-                            let stateLocObj : Parser.Object = state.objects[locObj];
-
+                            var stateObj = state.objects[obj];
+                            var stateLocObj = state.objects[locObj];
                             // Depending on the type of relationship we define different laws
                             /*
                              Physical laws
@@ -218,17 +169,17 @@ module Interpreter {
                                  Small boxes cannot be supported by small bricks or pyramids.
                                  Large boxes cannot be supported by large pyramids.
                              */
-
-
                             // TODO: Get an answer to the question if we can assume that the world is in a correct state to begin with
                             // if that is true we only have to check the the relationship between the subject and the location
                             switch (location.relation) {
                                 case RELATION.inside:
                                 case RELATION.ontop:
-                                    if(checkOnTop(stateObj, stateLocObj)) interpretation.push(getGoal(true, location.relation, [obj, locObj]));
+                                    if (checkOnTop(stateObj, stateLocObj))
+                                        interpretation.push(getGoal(true, location.relation, [obj, locObj]));
                                     break;
                                 case RELATION.under:
-                                    if(checkOnTop(stateLocObj, stateObj)) interpretation.push(getGoal(true, location.relation, [obj, locObj]));
+                                    if (checkOnTop(stateLocObj, stateObj))
+                                        interpretation.push(getGoal(true, location.relation, [obj, locObj]));
                                     break;
                                 default:
                                     interpretation.push(getGoal(true, location.relation, [obj, locObj]));
@@ -239,13 +190,11 @@ module Interpreter {
                             interpretation.push(getGoal(true, location.relation, [obj, locObj]));
                         }
                     }
-                })
+                });
             });
         }
-
         return (interpretation.length !== 0) ? interpretation : null;
     }
-
     /**
      * Finds all the objects that matches the entity description and returns the
      *
@@ -253,23 +202,19 @@ module Interpreter {
      * @param state
      * @returns {string[]}
      */
-    function interpretEntity(entity : Parser.Entity, state : WorldState) : string[] {
-        var obj : Parser.Object = entity.object;
-        var objects : string[] = [];
-
+    function interpretEntity(entity, state) {
+        var obj = entity.object;
+        var objects = [];
         // If we search for a floor we add it
-        if (interpretObject(obj, {form: "floor"})) {
+        if (interpretObject(obj, { form: "floor" })) {
             objects.push("floor");
             return objects;
         }
-
         // we make a search through the world state to find objects that match our description
-        for (var col : number = 0; col < state.stacks.length; col++) {
-            var stack : Stack = state.stacks[col];
-
-            for (var row : number = 0; row < stack.length; row++) {
-                var item : string = stack[row];
-
+        for (var col = 0; col < state.stacks.length; col++) {
+            var stack = state.stacks[col];
+            for (var row = 0; row < stack.length; row++) {
+                var item = stack[row];
                 if (interpretObject(obj, state.objects[item])) {
                     objects.push(item);
                 }
@@ -282,97 +227,83 @@ module Interpreter {
                 }
             }
         }
-
         return objects;
     }
-
-    function interpretLocation(location : Parser.Location, state : WorldState, col : number, row : number) : boolean{
-        let obj : Parser.Object;
-        let nCol : number;
-        let nRow : number;
-        let match : boolean = false;
-
+    function interpretLocation(location, state, col, row) {
+        var obj;
+        var nCol;
+        var nRow;
+        var match = false;
         // If there is a location defined and that location object matches the state object
         // we handle the relation
-
         // We make recursive calls on the location match until there are no more locations, if there is a match on
         // the final location we return true
-
         switch (location.relation) {
             case RELATION.beside:
                 // x is beside y if they are in adjacent stacks.
-                if(col < state.stacks.length){
+                if (col < state.stacks.length) {
                     nCol = col + 1;
                     nRow = row;
                     obj = state.objects[state.stacks[nCol][nRow]];
                     match = interpretObject(location.entity.object, obj);
                 }
-
-
-                if(!match && col > 0){
+                if (!match && col > 0) {
                     nCol = col - 1;
                     nRow = row;
                     obj = state.objects[state.stacks[nCol][nRow]];
                     match = interpretObject(location.entity.object, obj);
                 }
-
                 break;
-
             case RELATION.leftof:
                 // x is left of y if it is somewhere to the left.
-                if(col > 0){
+                if (col > 0) {
                     nCol = col - 1;
                     nRow = row;
                     obj = state.objects[state.stacks[nCol][nRow]];
                     match = interpretObject(location.entity.object, obj);
                 }
                 break;
-
             case RELATION.rightof:
                 // x is right of y if it is somewhere to the right.
-                if(col < (state.stacks.length - 1)){
+                if (col < (state.stacks.length - 1)) {
                     nCol = col + 1;
                     nRow = row;
                     obj = state.objects[state.stacks[nCol][nRow]];
                     match = interpretObject(location.entity.object, obj);
                 }
                 break;
-
             case RELATION.ontop:
             case RELATION.inside:
                 //x is on top of y if it is directly on top – the same relation is called inside if y is a box.
                 nCol = col;
                 nRow = row - 1;
-                obj = (row == 0) ? {form: "floor"} : state.objects[state.stacks[nCol][nRow]];
+                obj = (row == 0) ? { form: "floor" } : state.objects[state.stacks[nCol][nRow]];
                 match = interpretObject(location.entity.object, obj);
                 break;
-
             case RELATION.under:
                 // x is under y if it is somewhere below.
-                if(row < (state.stacks[col].length - 1)){
+                if (row < (state.stacks[col].length - 1)) {
                     nCol = col;
                     nRow = row + 1;
                     obj = state.objects[state.stacks[nCol][nRow]];
                     match = interpretObject(location.entity.object, obj);
                 }
                 break;
-
             case RELATION.above:
                 // x is above y if it is somewhere above.
                 break;
-
             default:
                 break;
         }
-
-        if(match){
-            if(location.entity.object.location) interpretLocation(location.entity.object.location, state, nCol, nRow);
+        if (match) {
+            if (location.entity.object.location)
+                interpretLocation(location.entity.object.location, state, nCol, nRow);
             return true;
-        } else {
+        }
+        else {
             return false;
         }
     }
-
     /**
      * Returns a goal for the DNF
      *
@@ -381,7 +312,7 @@ module Interpreter {
      * @param args
      * @returns {Interpreter.Literal[]}
      */
-    function getGoal(pol:boolean, rel:string, args:string[]) : Interpreter.Literal[] {
+    function getGoal(pol, rel, args) {
         return [
             {
                 polarity: pol,
@@ -390,7 +321,6 @@ module Interpreter {
             }
         ];
     }
-
     /**
      * A check to see if the description matches an object
      *
@@ -398,30 +328,29 @@ module Interpreter {
      * @param stateObject
      * @returns {boolean}
      */
-    function interpretObject(obj:Parser.Object, stateObject:Parser.Object):boolean {
-        if(!obj || !stateObject) return false;
+    function interpretObject(obj, stateObject) {
+        if (!obj || !stateObject)
+            return false;
         return (obj.color == stateObject.color || obj.color == null)
             && (obj.size == stateObject.size || obj.size == null)
             && (obj.form == stateObject.form || (obj.form == "anyform" && stateObject.form != "floor"));
     }
-
     /**
      *  Get the enum size according to the string that is passed into the function
      *
      * @param size string
      * @returns {SIZE}
      */
-    function getSize(size : string) : SIZE {
+    function getSize(size) {
         switch (size) {
             case "small":
                 return SIZE.small;
             case "large":
                 return SIZE.large;
             default:
-                return SIZE.undefined
+                return SIZE.undefined;
         }
     }
-
     /**
      * Simply a less than or equal for the Parse.Object
      *
@@ -429,14 +358,12 @@ module Interpreter {
      * @param size2
      * @returns {boolean}
      */
-    function lte(size1 : string, size2 : string) : boolean {
+    function lte(size1, size2) {
         return getSize(size1) <= getSize(size2);
     }
-
-    function equalSize(size1 : string, size2 : string) : boolean {
+    function equalSize(size1, size2) {
         return getSize(size1) == getSize(size2);
     }
-
     /**
      *
      * Check to see if we have a stack relation in the world state
@@ -445,17 +372,16 @@ module Interpreter {
      * @param relation
      * @returns {boolean}
      */
-    function checkStackRelation(relation : string) : boolean {
+    function checkStackRelation(relation) {
         // We create an array and the check if the relation is contained within that
         // array.
-        let arr = [
+        var arr = [
             RELATION.ontop,
             RELATION.above,
             RELATION.inside,
             RELATION.under
         ];
-
         return (arr.indexOf(relation) === -1) ? false : true;
     }
-
-}
+})(Interpreter || (Interpreter = {}));
+//# sourceMappingURL=Interpreter.js.map
