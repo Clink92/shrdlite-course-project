@@ -318,16 +318,9 @@ module Interpreter {
             case RELATION.ontop:
             case RELATION.inside:
                 //x is on top of y if it is directly on top – the same relation is called inside if y is a box.
-                let nRow : number;
-
-                if(row == 0)
-                    nRow = row;
-                else
-                    nRow = row - 1;
-
+                let nRow : number = row - 1;
                 let obj = (row == 0) ? {form: "floor"} : state.objects[state.stacks[col][nRow]];
 
-                console.log("CONFIRM!");
                 matchObject = getMatchedObject(col, nRow, location.entity.object, obj);
 
                 console.log(matchObject.col);
@@ -367,12 +360,7 @@ module Interpreter {
 
     function getMatchedObject(col: number, row: number, obj : Parser.Object, stateObj: Parser.Object) : MatchObject
     {
-        let matchObject : MatchObject;
-        matchObject.col = col;
-        matchObject.row = row;
-        matchObject.matched = interpretObject(obj, stateObj);
-
-        return matchObject;
+        return {col: col, row: row, matched: interpretObject(obj, stateObj)};
     }
 
     function checkPhysicalLaws(obj : Parser.Object, locObj : Parser.Object, polarity : boolean) : boolean {
