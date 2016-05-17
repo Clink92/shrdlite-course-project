@@ -75,7 +75,7 @@ var allTestCases : TestCase[] = [
     {world: "small",
         utterance: "put the yellow box below the blue box",
         interpretations: [["under(k,m)"]]
-    }/*,
+    },
 
     {world: "small",
         utterance: "put the yellow box on the floor beside the blue box",
@@ -83,9 +83,9 @@ var allTestCases : TestCase[] = [
     },
 
     {world: "small",
-        utterance: "take a ball in a box beside a table",
-        interpretations: [["holding(e) | holding(f)"], ["inside(e, k) | inside(e, l) | inside(e, m)"]]
-    }*/
+        utterance: "take a ball in a box left of a table",
+        interpretations: [["holding(f)"]]
+    }
 ];
 
 

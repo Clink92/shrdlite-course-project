@@ -47,6 +47,17 @@ module Interpreter {
         var errors:Error[] = [];
         var interpretations:InterpretationResult[] = [];
 
+        /*
+        try {
+            var result:InterpretationResult = <InterpretationResult>parses[0];
+            result.interpretation = interpretCommand(result.parse, currentState);
+            // NOTE: We did not now what to return if there was no result so we return null, if so we do not add it
+            if (result.interpretation) interpretations.push(result);
+        } catch (err) {
+            errors.push(err);
+        }
+        */
+
         parses.forEach((parseresult) => {
             try {
                 var result:InterpretationResult = <InterpretationResult>parseresult;
@@ -57,6 +68,8 @@ module Interpreter {
                 errors.push(err);
             }
         });
+
+
         if (interpretations.length) {
             return interpretations;
         } else {
@@ -160,11 +173,13 @@ module Interpreter {
         // if there is no location we go through all the objects and assume we just pick them up
         if (!location) {
             objects.forEach((obj) => {
+                console.log("NO LOCATION");
                 // The arm can only hold one object at the time.
                 if(!state.holding) interpretation.push(getGoal(true, "holding", [obj]));
             });
         }
         else {
+            console.log("LOCATION");
             var locationObjects : string[] = interpretEntity(location.entity, state);
 
             objects.forEach((obj) => {
@@ -190,9 +205,6 @@ module Interpreter {
                                  The arm can only pick up free objects.
                              */
 
-
-                            // TODO: Get an answer to the question if we can assume that the world is in a correct state to begin with
-                            // if that is true we only have to check the the relationship between the subject and the location
                             switch (location.relation) {
                                 case RELATION.inside:
                                 case RELATION.ontop:
@@ -228,8 +240,10 @@ module Interpreter {
         var obj : Parser.Object = entity.object;
         var objects : string[] = [];
 
+        console.log("Interpreting Entity");
+
         // If we search for a floor we add it
-        if (interpretObject(obj, {form: "floor"})) {
+        if (interpretObject(obj, state, 0, 0)) {
             objects.push("floor");
             return objects;
         }
@@ -241,15 +255,8 @@ module Interpreter {
             for (var row : number = 0; row < stack.length; row++) {
                 var item : string = stack[row];
 
-                if (interpretObject(obj, state.objects[item])) {
+                if (interpretObject(obj, state, col, row)) {
                     objects.push(item);
-                }
-                else if (obj.location && interpretObject(obj.object, state.objects[item])) {
-                    // If there is a location defined and that location object matches the state object
-                    // we handle the relation
-                    if (interpretLocation(obj.location, state, col, row)) {
-                        objects.push(item);
-                    }
                 }
             }
         }
@@ -257,15 +264,32 @@ module Interpreter {
         return objects;
     }
 
+
+    type  MatchObject = {
+        col: number,
+        row: number,
+        matched: boolean,
+    }
+
+    function getMatchedObject(col: number, row: number, obj : Parser.Object, state: WorldState) : MatchObject
+    {
+        return {col: col, row: row, matched: interpretObject(obj, state, col, row)};
+    }
+
     /**
-     * A check to see if the description matches an object
      *
      * @param obj
-     * @param stateObject
+     * @param state
+     * @param col
+     * @param row
      * @returns {boolean}
      */
-    function interpretObject(obj:Parser.Object, stateObject:Parser.Object):boolean {
+    function interpretObject(obj:Parser.Object, state : WorldState, col? : number, row? : number):boolean {
+        let stateObject : Parser.Object = (row == 0) ? {form: "floor"} : state.objects[state.stacks[col][row]];
         if(!obj || !stateObject) return false;
+        /*if(obj.location) {
+            return interpretLocation(obj.location, state, col, row);
+        }*/
         return (obj.color == stateObject.color || obj.color == null)
             && (obj.size == stateObject.size || obj.size == null)
             && (obj.form == stateObject.form || (obj.form == "anyform" && stateObject.form != "floor"));
@@ -273,7 +297,7 @@ module Interpreter {
 
     function interpretLocation(location : Parser.Location, state : WorldState, col : number, row : number) : boolean{
         let matchObject : MatchObject;
-
+        // console.log("here again....", location.entity);
         // If there is a location defined and that location object matches the state object
         // we handle the relation
 
@@ -285,30 +309,30 @@ module Interpreter {
                 // x is beside y if they are in adjacent stacks.
                 if(col < state.stacks.length){
                     let nCol : number = col + 1;
-                    matchObject = getMatchedObject(nCol, row, location.entity.object, state.objects[state.stacks[nCol][row]]);
+                    matchObject = getMatchedObject(nCol, row, location.entity.object, state);
                 }
 
 
                 if(!matchObject.matched && col > 0){
                     let nCol = col - 1;
-                    matchObject = getMatchedObject(nCol, row, location.entity.object, state.objects[state.stacks[nCol][row]]);
+                    matchObject = getMatchedObject(nCol, row, location.entity.object, state);
                 }
-
                 break;
 
             case RELATION.leftof:
+                console.log("LEFT OF");
                 // x is left of y if it is somewhere to the left.
-                for(let dCol : number = col - 1; dCol > 0; dCol--) {
-                    matchObject = getMatchedObject(dCol, row, location.entity.object, state.objects[state.stacks[dCol][row]]);
-
-                    if(matchObject.matched) break;
+                for(let dCol : number = col - 1; dCol >= 0; dCol--) {
+                    for(let dRow : number = 0; row < state.stacks[dCol].length; dRow++){
+                        matchObject = getMatchedObject(dCol, row, location.entity.object, state);
+                        if(matchObject.matched) break;
+                    }
                 }
                 break;
-
             case RELATION.rightof:
                 // x is right of y if it is somewhere to the right.
                 for (let dCol : number = col + 1; dCol < (state.stacks.length - 1); dCol++) {
-                    matchObject = getMatchedObject(dCol, row, location.entity.object, state.objects[state.stacks[dCol][row]]);
+                    matchObject = getMatchedObject(dCol, row, location.entity.object, state);
 
                     if(matchObject.matched) break;
                 }
@@ -318,20 +342,16 @@ module Interpreter {
             case RELATION.ontop:
             case RELATION.inside:
                 //x is on top of y if it is directly on top – the same relation is called inside if y is a box.
+                console.log("inside");
                 let nRow : number = row - 1;
-                let obj = (row == 0) ? {form: "floor"} : state.objects[state.stacks[col][nRow]];
-
-                matchObject = getMatchedObject(col, nRow, location.entity.object, obj);
-
-                console.log(matchObject.col);
+                matchObject = getMatchedObject(col, nRow, location.entity.object, state);
                 break;
 
             case RELATION.under:
                 // x is under y if it is somewhere below.
                 if(row < (state.stacks[col].length - 1)){
                     let nRow = row + 1;
-
-                    matchObject = getMatchedObject(col, nRow, location.entity.object, state.objects[state.stacks[col][nRow]]);
+                    matchObject = getMatchedObject(col, nRow, location.entity.object, state);
                 }
                 break;
 
@@ -345,23 +365,13 @@ module Interpreter {
 
         if(matchObject.matched){
             if(location.entity.object.location)
-                interpretLocation(location.entity.object.location, state, matchObject.col, matchObject.row);
+                return interpretLocation(location.entity.object.location, state, matchObject.col, matchObject.row);
             return true;
         } else {
             return false;
         }
     }
 
-    type  MatchObject = {
-        col: number,
-        row: number,
-        matched: boolean,
-    }
-
-    function getMatchedObject(col: number, row: number, obj : Parser.Object, stateObj: Parser.Object) : MatchObject
-    {
-        return {col: col, row: row, matched: interpretObject(obj, stateObj)};
-    }
 
     function checkPhysicalLaws(obj : Parser.Object, locObj : Parser.Object, polarity : boolean) : boolean {
         // Balls cannot support anything. /
