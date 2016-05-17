@@ -151,6 +151,8 @@ module Interpreter {
      */
     function interpretCommand(cmd : Parser.Command, state : WorldState) : DNFFormula {
 
+      //  console.log(state.objects);
+
         let interpretation : DNFFormula = [];
         let location : Parser.Location = cmd.location;
         let objects : string[] = interpretEntity(cmd.entity, state);
@@ -194,10 +196,10 @@ module Interpreter {
                             switch (location.relation) {
                                 case RELATION.inside:
                                 case RELATION.ontop:
-                                    if(checkPhysicalLaws(stateObj, stateLocObj)) interpretation.push(getGoal(true, location.relation, [obj, locObj]));
+                                    if(checkPhysicalLaws(stateObj, stateLocObj, true)) interpretation.push(getGoal(true, location.relation, [obj, locObj]));
                                     break;
                                 case RELATION.under:
-                                    if(checkPhysicalLaws(stateLocObj, stateObj)) interpretation.push(getGoal(true, location.relation, [obj, locObj]));
+                                    if(checkPhysicalLaws(stateObj, stateLocObj, false)) interpretation.push(getGoal(true, location.relation, [obj, locObj]));
                                     break;
                                 default:
                                     interpretation.push(getGoal(true, location.relation, [obj, locObj]));
@@ -270,10 +272,7 @@ module Interpreter {
     }
 
     function interpretLocation(location : Parser.Location, state : WorldState, col : number, row : number) : boolean{
-        let obj : Parser.Object;
-        let nCol : number;
-        let nRow : number;
-        let match : boolean = false;
+        let matchObject : MatchObject;
 
         // If there is a location defined and that location object matches the state object
         // we handle the relation
@@ -285,43 +284,33 @@ module Interpreter {
             case RELATION.beside:
                 // x is beside y if they are in adjacent stacks.
                 if(col < state.stacks.length){
-                    nCol = col + 1;
-                    nRow = row;
-                    obj = state.objects[state.stacks[nCol][nRow]];
-                    match = interpretObject(location.entity.object, obj);
+                    let nCol : number = col + 1;
+                    matchObject = getMatchedObject(nCol, row, location.entity.object, state.objects[state.stacks[nCol][row]]);
                 }
 
 
-                if(!match && col > 0){
-                    nCol = col - 1;
-                    nRow = row;
-                    obj = state.objects[state.stacks[nCol][nRow]];
-                    match = interpretObject(location.entity.object, obj);
+                if(!matchObject.matched && col > 0){
+                    let nCol = col - 1;
+                    matchObject = getMatchedObject(nCol, row, location.entity.object, state.objects[state.stacks[nCol][row]]);
                 }
 
                 break;
 
             case RELATION.leftof:
                 // x is left of y if it is somewhere to the left.
-                for(var dCol : number = col; dCol > 0; dCol--) {
-                    nCol = dCol - 1;
-                    nRow = row;
-                    obj = state.objects[state.stacks[nCol][nRow]];
-                    match = interpretObject(location.entity.object, obj);
+                for(let dCol : number = col - 1; dCol > 0; dCol--) {
+                    matchObject = getMatchedObject(dCol, row, location.entity.object, state.objects[state.stacks[dCol][row]]);
 
-                    if(match) break;
+                    if(matchObject.matched) break;
                 }
                 break;
 
             case RELATION.rightof:
                 // x is right of y if it is somewhere to the right.
-                for (var dCol : number = col; dCol < (state.stacks.length - 1); dCol++) {
-                    nCol = dCol + 1;
-                    nRow = row;
-                    obj = state.objects[state.stacks[nCol][nRow]];
-                    match = interpretObject(location.entity.object, obj);
+                for (let dCol : number = col + 1; dCol < (state.stacks.length - 1); dCol++) {
+                    matchObject = getMatchedObject(dCol, row, location.entity.object, state.objects[state.stacks[dCol][row]]);
 
-                    if(match) break;
+                    if(matchObject.matched) break;
                 }
 
                 break;
@@ -329,19 +318,27 @@ module Interpreter {
             case RELATION.ontop:
             case RELATION.inside:
                 //x is on top of y if it is directly on top – the same relation is called inside if y is a box.
-                nCol = col;
-                nRow = row - 1;
-                obj = (row == 0) ? {form: "floor"} : state.objects[state.stacks[nCol][nRow]];
-                match = interpretObject(location.entity.object, obj);
+                let nRow : number;
+
+                if(row == 0)
+                    nRow = row;
+                else
+                    nRow = row - 1;
+
+                let obj = (row == 0) ? {form: "floor"} : state.objects[state.stacks[col][nRow]];
+
+                console.log("CONFIRM!");
+                matchObject = getMatchedObject(col, nRow, location.entity.object, obj);
+
+                console.log(matchObject.col);
                 break;
 
             case RELATION.under:
                 // x is under y if it is somewhere below.
                 if(row < (state.stacks[col].length - 1)){
-                    nCol = col;
-                    nRow = row + 1;
-                    obj = state.objects[state.stacks[nCol][nRow]];
-                    match = interpretObject(location.entity.object, obj);
+                    let nRow = row + 1;
+
+                    matchObject = getMatchedObject(col, nRow, location.entity.object, state.objects[state.stacks[col][nRow]]);
                 }
                 break;
 
@@ -353,16 +350,39 @@ module Interpreter {
                 break;
         }
 
-        if(match){
-            if(location.entity.object.location) interpretLocation(location.entity.object.location, state, nCol, nRow);
+        if(matchObject.matched){
+            if(location.entity.object.location)
+                interpretLocation(location.entity.object.location, state, matchObject.col, matchObject.row);
             return true;
         } else {
             return false;
         }
     }
 
-    function checkPhysicalLaws(obj : Parser.Object, locObj : Parser.Object) : boolean {
-        // Balls cannot support anything.
+    type  MatchObject = {
+        col: number,
+        row: number,
+        matched: boolean,
+    }
+
+    function getMatchedObject(col: number, row: number, obj : Parser.Object, stateObj: Parser.Object) : MatchObject
+    {
+        let matchObject : MatchObject;
+        matchObject.col = col;
+        matchObject.row = row;
+        matchObject.matched = interpretObject(obj, stateObj);
+
+        return matchObject;
+    }
+
+    function checkPhysicalLaws(obj : Parser.Object, locObj : Parser.Object, polarity : boolean) : boolean {
+        // Balls cannot support anything. /
+        if(!polarity) {
+            let temp : Parser.Object = obj;
+            obj = locObj;
+            locObj = temp;
+        }
+
         if(locObj.form === FORM.ball) return false;
 
         //Small objects cannot support large objects.
