@@ -16,13 +16,13 @@ var Edge = (function () {
     function Edge() {
     }
     return Edge;
-}());
+})();
 /** Type that reports the result of a search. */
 var SearchResult = (function () {
     function SearchResult() {
     }
     return SearchResult;
-}());
+})();
 /**
 * A\* search implementation, parameterised by a `Node` type. The code
 * here is just a template; you should rewrite this function
