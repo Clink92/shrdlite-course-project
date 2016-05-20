@@ -54,8 +54,7 @@ if (typeof require !== 'undefined') {
 }
 ///<reference path="World.ts"/>
 ///<reference path="Parser.ts"/>
-///<reference path="lib/node.d.ts"/>
-var extend = require("util").extend;
+///<reference path="lib/async.d.ts"/>
 /**
  * Interpreter module
  *
@@ -75,8 +74,6 @@ var extend = require("util").extend;
  */
 var Interpreter;
 (function (Interpreter) {
-    //////////////////////////////////////////////////////////////////////
-    // exported functions, classes and interfaces/types
     /**
      Top-level function for the Interpreter. It calls `interpretCommand` for each possible parse of the command.
      * @param parses List of parses produced by the Parser.
@@ -86,6 +83,14 @@ var Interpreter;
     function interpret(parses, currentState) {
         var errors = [];
         var interpretations = [];
+        /*try {
+            var result:InterpretationResult = <InterpretationResult>parses[1];
+            result.interpretation = interpretCommand(result.parse, currentState);
+            // NOTE: We did not now what to return if there was no result so we return null, if so we do not add it
+            if (result.interpretation) interpretations.push(result);
+        } catch (err) {
+            errors.push(err);
+        }*/
         parses.forEach(function (parseresult) {
             try {
                 var result = parseresult;
@@ -120,7 +125,13 @@ var Interpreter;
     Interpreter.stringifyLiteral = stringifyLiteral;
     //////////////////////////////////////////////////////////////////////
     // private functions
-    var RELATIONS = {
+    var SIZE;
+    (function (SIZE) {
+        SIZE[SIZE["small"] = 0] = "small";
+        SIZE[SIZE["large"] = 1] = "large";
+        SIZE[SIZE["undefined"] = 2] = "undefined";
+    })(SIZE || (SIZE = {}));
+    var RELATION = {
         ontop: 'ontop',
         inside: 'inside',
         above: 'above',
@@ -128,6 +139,23 @@ var Interpreter;
         beside: 'beside',
         leftof: 'leftof',
         rightof: 'rightof'
+    };
+    var FORM = {
+        brick: 'brick',
+        plank: 'plank',
+        ball: 'ball',
+        pyramid: 'pyramid',
+        box: 'box',
+        table: 'table',
+        floor: 'floor'
+    };
+    var COLOR = {
+        red: 'red',
+        black: 'black',
+        blue: 'blue',
+        green: 'green',
+        yellow: 'yellow',
+        white: 'white'
     };
     /**
      *
@@ -139,15 +167,17 @@ var Interpreter;
     function interpretCommand(cmd, state) {
         var interpretation = [];
         var location = cmd.location;
-        var objects = getObjects(cmd.entity, state);
+        var objects = interpretEntity(cmd.entity, state);
         // if there is no location we go through all the objects and assume we just pick them up
         if (!location) {
             objects.forEach(function (obj) {
-                interpretation.push(getGoal(true, "holding", [obj]));
+                // The arm can only hold one object at the time.
+                if (!state.holding)
+                    interpretation.push(getGoal(true, "holding", [obj]));
             });
         }
         else {
-            var locationObjects = getObjects(location.entity, state);
+            var locationObjects = interpretEntity(location.entity, state);
             objects.forEach(function (obj) {
                 locationObjects.forEach(function (locObj) {
                     if (state.objects[obj] !== state.objects[locObj]) {
@@ -155,20 +185,30 @@ var Interpreter;
                         // If we have a stack relationship we need to check that it fulfills the physical laws
                         if (locObj !== "floor" && checkStackRelation(location.relation)) {
                             // small objects cannot support large objects
-                            if (lte(state.objects[obj], state.objects[locObj])) {
-                                var stateObj = state.objects[obj];
-                                var stateLocObj = state.objects[locObj];
-                                // Depending on the type of relationship we define different laws
-                                switch (location.relation) {
-                                    case RELATIONS.ontop:
-                                        if (stateObj.form == "ball" && stateLocObj.form == "table")
-                                            break;
+                            var stateObj = state.objects[obj];
+                            var stateLocObj = state.objects[locObj];
+                            // Depending on the type of relationship we define different laws
+                            /*
+                             Physical laws
+
+                             The world is ruled by physical laws that constrain the placement and movement of the objects:
+                                 The floor can support at most N objects (beside each other).
+                                 All objects must be supported by something.
+                                 The arm can only pick up free objects.
+                             */
+                            switch (location.relation) {
+                                case RELATION.inside:
+                                case RELATION.ontop:
+                                    if (checkPhysicalLaws(stateObj, stateLocObj, true))
                                         interpretation.push(getGoal(true, location.relation, [obj, locObj]));
-                                        break;
-                                    default:
+                                    break;
+                                case RELATION.under:
+                                    if (checkPhysicalLaws(stateObj, stateLocObj, false))
                                         interpretation.push(getGoal(true, location.relation, [obj, locObj]));
-                                        break;
-                                }
+                                    break;
+                                default:
+                                    interpretation.push(getGoal(true, location.relation, [obj, locObj]));
+                                    break;
                             }
                         }
                         else {
@@ -187,11 +227,11 @@ var Interpreter;
      * @param state
      * @returns {string[]}
      */
-    function getObjects(entity, state) {
+    function interpretEntity(entity, state) {
         var obj = entity.object;
         var objects = [];
         // If we search for a floor we add it
-        if (descriptionMatch(obj, { form: "floor" })) {
+        if (interpretObject(obj, state, 0, -1)) {
             objects.push("floor");
             return objects;
         }
@@ -200,38 +240,140 @@ var Interpreter;
             var stack = state.stacks[col];
             for (var row = 0; row < stack.length; row++) {
                 var item = stack[row];
-                if (descriptionMatch(obj, state.objects[item])) {
+                if (interpretObject(obj, state, col, row)) {
                     objects.push(item);
-                }
-                else if (obj.location !== undefined && descriptionMatch(obj.object, state.objects[item])) {
-                    // If there is a location defined and that location object matches the state object
-                    // we handle the relation
-                    var rObj = void 0;
-                    var location_1 = obj.location;
-                    // If there is a location defined and that location object matches the state object
-                    // we handle the relation
-                    switch (location_1.relation) {
-                        case RELATIONS.beside:
-                            // for the object to be relevant it needs to have what we search for on either
-                            // the left or the right side
-                            rObj = state.objects[state.stacks[col + 1][row]]
-                                || state.objects[state.stacks[col - 1][row]];
-                            break;
-                        case RELATIONS.ontop:
-                        case RELATIONS.inside:
-                            rObj = (row == 0) ? { form: "floor" } : state.objects[stack[row - 1]];
-                            break;
-                        default:
-                            break;
-                    }
-                    // If the relation object is defined and it matches the description we add it to the objects
-                    if (rObj && descriptionMatch(location_1.entity.object, rObj)) {
-                        objects.push(item);
-                    }
                 }
             }
         }
         return objects;
+    }
+    /**
+     *
+     * @param obj
+     * @param state
+     * @param col
+     * @param row
+     * @returns {boolean}
+     */
+    function interpretObject(obj, state, col, row) {
+        var stateObject = (row == -1) ? { form: "floor" } : state.objects[state.stacks[col][row]];
+        if (!obj || !stateObject)
+            return false;
+        if (obj.location) {
+            return interpretObject(obj.object, state, col, row) && interpretLocation(obj.location, state, col, row);
+        }
+        else {
+            return isObjectMatch(obj, stateObject);
+        }
+    }
+    function isObjectMatch(obj, stateObject) {
+        return (obj.color == stateObject.color || obj.color == null)
+            && (obj.size == stateObject.size || obj.size == null)
+            && (obj.form == stateObject.form || (obj.form == "anyform" && stateObject.form != "floor"));
+    }
+    function getMatchedObject(col, row, obj, state) {
+        return { col: col, row: row, matched: interpretObject(obj, state, col, row) };
+    }
+    function interpretLocation(location, state, col, row) {
+        var positions = [];
+        // console.log("here again....", location.entity);
+        // If there is a location defined and that location object matches the state object
+        // we handle the relation
+        // We make recursive calls on the location match until there are no more locations, if there is a match on
+        // the final location we return true
+        switch (location.relation) {
+            case RELATION.beside:
+                // x is beside y if they are in adjacent stacks.
+                if (col < state.stacks.length) {
+                    var dCol = col + 1;
+                    positions.push(getMatchedObject(dCol, row, location.entity.object, state));
+                }
+                if (col > 0) {
+                    var dCol = col - 1;
+                    positions.push(getMatchedObject(dCol, row, location.entity.object, state));
+                }
+                break;
+            case RELATION.leftof:
+                // x is left of y if it is somewhere to the left.
+                for (var dCol = col - 1; dCol >= 0; dCol--) {
+                    for (var dRow_1 = 0; dRow_1 < state.stacks[dCol].length; dRow_1++) {
+                        positions.push(getMatchedObject(dCol, dRow_1, location.entity.object, state));
+                    }
+                }
+                break;
+            case RELATION.rightof:
+                // x is right of y if it is somewhere to the right.
+                for (var dCol = col + 1; dCol < (state.stacks.length - 1); dCol++) {
+                    for (var dRow_2 = 0; dRow_2 < state.stacks[dCol].length; dRow_2++) {
+                        positions.push(getMatchedObject(dCol, dRow_2, location.entity.object, state));
+                    }
+                }
+                break;
+            case RELATION.ontop:
+            case RELATION.inside:
+                //x is on top of y if it is directly on top – the same relation is called inside if y is a box.
+                var dRow = row - 1;
+                positions.push(getMatchedObject(col, dRow, location.entity.object, state));
+                break;
+            case RELATION.under:
+                // x is under y if it is somewhere below.
+                if (row < (state.stacks[col].length - 1)) {
+                    var dRow_3 = row + 1;
+                    positions.push(getMatchedObject(col, dRow_3, location.entity.object, state));
+                }
+                break;
+            case RELATION.above:
+                // x is above y if it is somewhere above.
+                break;
+            default:
+                break;
+        }
+        for (var i = 0; i < positions.length; i++) {
+            var pos = positions[i];
+            if (pos.matched) {
+                if (location.entity.object.location) {
+                    return interpretLocation(location.entity.object.location, state, pos.col, pos.row);
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+    function checkPhysicalLaws(obj, locObj, polarity) {
+        // Balls cannot support anything. /
+        if (!polarity) {
+            var temp = obj;
+            obj = locObj;
+            locObj = temp;
+        }
+        if (locObj.form === FORM.ball)
+            return false;
+        //Small objects cannot support large objects.
+        if (lte(obj.size, locObj.size)) {
+            switch (obj.form) {
+                case FORM.ball:
+                    return locObj.form === FORM.box || locObj.form === FORM.floor;
+                case FORM.box:
+                    if (equalSize(obj.size, locObj.size)) {
+                        // Boxes cannot contain pyramids, planks or boxes of the same size.
+                        return !(locObj.form === FORM.pyramid ||
+                            locObj.form === FORM.plank ||
+                            locObj.form === FORM.box);
+                    }
+                    else if (getSize(obj.size) === SIZE.small) {
+                        // Small boxes cannot be supported by small bricks or pyramids.
+                        return !(locObj.form === FORM.brick || locObj.form === FORM.pyramid);
+                    }
+                    else if (getSize(obj.size) == SIZE.large) {
+                        // Large boxes cannot be supported by large pyramids.
+                        return !(locObj.form === FORM.pyramid);
+                    }
+                    return true;
+                default:
+                    return true;
+            }
+        }
+        return false;
     }
     /**
      * Returns a goal for the DNF
@@ -251,28 +393,10 @@ var Interpreter;
         ];
     }
     /**
-     * A check to see if the description matches an object
-     *
-     * @param obj
-     * @param stateObject
-     * @returns {boolean}
-     */
-    function descriptionMatch(obj, stateObject) {
-        return (obj.color == stateObject.color || obj.color == null)
-            && (obj.size == stateObject.size || obj.size == null)
-            && (obj.form == stateObject.form || (obj.form == "anyform" && stateObject.form != "floor"));
-    }
-    var SIZE;
-    (function (SIZE) {
-        SIZE[SIZE["small"] = 0] = "small";
-        SIZE[SIZE["large"] = 1] = "large";
-        SIZE[SIZE["undefined"] = 2] = "undefined";
-    })(SIZE || (SIZE = {}));
-    /**
      *  Get the enum size according to the string that is passed into the function
      *
-     * @param string
-     * @returns {Interpreter.SIZE}
+     * @param size string
+     * @returns {SIZE}
      */
     function getSize(size) {
         switch (size) {
@@ -287,12 +411,15 @@ var Interpreter;
     /**
      * Simply a less than or equal for the Parse.Object
      *
-     * @param obj1
-     * @param obj2
+     * @param size1
+     * @param size2
      * @returns {boolean}
      */
-    function lte(obj1, obj2) {
-        return getSize(obj1.size) <= getSize(obj2.size);
+    function lte(size1, size2) {
+        return getSize(size1) <= getSize(size2);
+    }
+    function equalSize(size1, size2) {
+        return getSize(size1) == getSize(size2);
     }
     /**
      *
@@ -306,10 +433,10 @@ var Interpreter;
         // We create an array and the check if the relation is contained within that
         // array.
         var arr = [
-            RELATIONS.ontop,
-            RELATIONS.above,
-            RELATIONS.inside,
-            RELATIONS.under
+            RELATION.ontop,
+            RELATION.above,
+            RELATION.inside,
+            RELATION.under
         ];
         return (arr.indexOf(relation) === -1) ? false : true;
     }
@@ -814,57 +941,86 @@ ExampleWorlds["impossible"] = {
     ]
 };
 var allTestCases = [
+    /*
+{world: "small",
+ utterance: "take an object",
+ interpretations: [["holding(e)", "holding(f)", "holding(g)", "holding(k)", "holding(l)", "holding(m)"]]
+},
+
+{world: "small",
+ utterance: "take a blue object",
+ interpretations: [["holding(g)", "holding(m)"]]
+},
+
+{world: "small",
+ utterance: "take a box",
+ interpretations: [["holding(k)", "holding(l)", "holding(m)"]]
+},
+
+{world: "small",
+ utterance: "put a ball in a box",
+ interpretations: [["inside(e,k)", "inside(e,l)", "inside(f,k)", "inside(f,l)", "inside(f,m)"]]
+},
+
+{world: "small",
+ utterance: "put a ball on a table",
+ interpretations: []
+},
+
+{world: "small",
+ utterance: "put a ball above a table",
+ interpretations: [["above(e,g)", "above(f,g)"]]
+},
+
+{world: "small",
+ utterance: "put a big ball in a small box",
+ interpretations: []
+},
+
+{world: "small",
+ utterance: "put a ball left of a ball",
+ interpretations: [["leftof(e,f)", "leftof(f,e)"]]
+},
+
+{world: "small",
+ utterance: "take a white object beside a blue object",
+ interpretations: [["holding(e)"]]
+},
+
+{world: "small",
+ utterance: "put a white object beside a blue object",
+ interpretations: [["beside(e,g) | beside(e,m)"]]
+},
+
+{world: "small",
+ utterance: "put a ball in a box on the floor",
+ interpretations: [["inside(e,k)", "inside(f,k)"], ["ontop(f,floor)"]]
+},
+
+{world: "small",
+ utterance: "put a white ball in a box on the floor",
+ interpretations: [["inside(e,k)"]]
+},
+
+{world: "small",
+ utterance: "put a black ball in a box on the floor",
+ interpretations: [["inside(f,k)"], ["ontop(f,floor)"]]
+},
+
+// Under
+{world: "small",
+    utterance: "put the yellow box below the blue box",
+    interpretations: [["under(k,m)"]]
+},
+
+{world: "small",
+    utterance: "put the yellow box on the floor beside the blue box",
+    interpretations: [["beside(k,m)"]]
+},
+*/
     { world: "small",
-        utterance: "take an object",
-        interpretations: [["holding(e)", "holding(f)", "holding(g)", "holding(k)", "holding(l)", "holding(m)"]]
-    },
-    { world: "small",
-        utterance: "take a blue object",
-        interpretations: [["holding(g)", "holding(m)"]]
-    },
-    { world: "small",
-        utterance: "take a box",
-        interpretations: [["holding(k)", "holding(l)", "holding(m)"]]
-    },
-    { world: "small",
-        utterance: "put a ball in a box",
-        interpretations: [["inside(e,k)", "inside(e,l)", "inside(f,k)", "inside(f,l)", "inside(f,m)"]]
-    },
-    { world: "small",
-        utterance: "put a ball on a table",
-        interpretations: []
-    },
-    { world: "small",
-        utterance: "put a ball above a table",
-        interpretations: [["above(e,g)", "above(f,g)"]]
-    },
-    { world: "small",
-        utterance: "put a big ball in a small box",
-        interpretations: []
-    },
-    { world: "small",
-        utterance: "put a ball left of a ball",
-        interpretations: [["leftof(e,f)", "leftof(f,e)"]]
-    },
-    { world: "small",
-        utterance: "take a white object beside a blue object",
-        interpretations: [["holding(e)"]]
-    },
-    { world: "small",
-        utterance: "put a white object beside a blue object",
-        interpretations: [["beside(e,g) | beside(e,m)"]]
-    },
-    { world: "small",
-        utterance: "put a ball in a box on the floor",
-        interpretations: [["inside(e,k)", "inside(f,k)"], ["ontop(f,floor)"]]
-    },
-    { world: "small",
-        utterance: "put a white ball in a box on the floor",
-        interpretations: [["inside(e,k)"]]
-    },
-    { world: "small",
-        utterance: "put a black ball in a box on the floor",
-        interpretations: [["inside(f,k)"], ["ontop(f,floor)"]]
+        utterance: "take a ball in a box left of a table",
+        interpretations: [["holding(f)"], ["holding(f)"]]
     }
 ];
 // /* Simple test cases for the ALL quantifier, uncomment if you want */
