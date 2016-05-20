@@ -35,27 +35,26 @@ var Interpreter;
     function interpret(parses, currentState) {
         var errors = [];
         var interpretations = [];
-        try {
-            var result = parses[0];
+        /*try {
+            var result:InterpretationResult = <InterpretationResult>parses[1];
             result.interpretation = interpretCommand(result.parse, currentState);
             // NOTE: We did not now what to return if there was no result so we return null, if so we do not add it
-            if (result.interpretation)
-                interpretations.push(result);
-        }
-        catch (err) {
+            if (result.interpretation) interpretations.push(result);
+        } catch (err) {
             errors.push(err);
-        }
-        /*
-        parses.forEach((parseresult) => {
+        }*/
+        parses.forEach(function (parseresult) {
             try {
-                var result:InterpretationResult = <InterpretationResult>parseresult;
+                var result = parseresult;
                 result.interpretation = interpretCommand(result.parse, currentState);
                 // NOTE: We did not now what to return if there was no result so we return null, if so we do not add it
-                if (result.interpretation) interpretations.push(result);
-            } catch (err) {
+                if (result.interpretation)
+                    interpretations.push(result);
+            }
+            catch (err) {
                 errors.push(err);
             }
-        });*/
+        });
         if (interpretations.length) {
             return interpretations;
         }
@@ -224,6 +223,9 @@ var Interpreter;
             && (obj.size == stateObject.size || obj.size == null)
             && (obj.form == stateObject.form || (obj.form == "anyform" && stateObject.form != "floor"));
     }
+    function getMatchedObject(col, row, obj, state) {
+        return { col: col, row: row, matched: interpretObject(obj, state, col, row) };
+    }
     function interpretLocation(location, state, col, row) {
         var positions = [];
         // console.log("here again....", location.entity);
@@ -236,42 +238,26 @@ var Interpreter;
                 // x is beside y if they are in adjacent stacks.
                 if (col < state.stacks.length) {
                     var dCol = col + 1;
-                    positions.push({
-                        object: state.stacks[dCol][row],
-                        col: dCol,
-                        row: row
-                    });
+                    positions.push(getMatchedObject(dCol, row, location.entity.object, state));
                 }
                 if (col > 0) {
                     var dCol = col - 1;
-                    positions.push({
-                        object: state.stacks[dCol][row],
-                        col: dCol,
-                        row: row
-                    });
+                    positions.push(getMatchedObject(dCol, row, location.entity.object, state));
                 }
                 break;
             case RELATION.leftof:
                 // x is left of y if it is somewhere to the left.
                 for (var dCol = col - 1; dCol >= 0; dCol--) {
-                    for (var dRow_1 = 0; row < state.stacks[dCol].length; dRow_1++) {
-                        positions.push({
-                            object: state.stacks[dCol][dRow_1],
-                            col: dCol,
-                            row: dRow_1
-                        });
+                    for (var dRow_1 = 0; dRow_1 < state.stacks[dCol].length; dRow_1++) {
+                        positions.push(getMatchedObject(dCol, dRow_1, location.entity.object, state));
                     }
                 }
                 break;
             case RELATION.rightof:
                 // x is right of y if it is somewhere to the right.
                 for (var dCol = col + 1; dCol < (state.stacks.length - 1); dCol++) {
-                    for (var dRow_2 = 0; row < state.stacks[dCol].length; dRow_2++) {
-                        positions.push({
-                            object: state.stacks[dCol][dRow_2],
-                            col: dCol,
-                            row: dRow_2
-                        });
+                    for (var dRow_2 = 0; dRow_2 < state.stacks[dCol].length; dRow_2++) {
+                        positions.push(getMatchedObject(dCol, dRow_2, location.entity.object, state));
                     }
                 }
                 break;
@@ -279,21 +265,13 @@ var Interpreter;
             case RELATION.inside:
                 //x is on top of y if it is directly on top – the same relation is called inside if y is a box.
                 var dRow = row - 1;
-                positions.push({
-                    object: state.stacks[col][dRow],
-                    col: col,
-                    row: dRow
-                });
+                positions.push(getMatchedObject(col, dRow, location.entity.object, state));
                 break;
             case RELATION.under:
                 // x is under y if it is somewhere below.
                 if (row < (state.stacks[col].length - 1)) {
                     var dRow_3 = row + 1;
-                    positions.push({
-                        object: state.stacks[col][dRow_3],
-                        col: col,
-                        row: dRow_3
-                    });
+                    positions.push(getMatchedObject(col, dRow_3, location.entity.object, state));
                 }
                 break;
             case RELATION.above:
@@ -303,8 +281,13 @@ var Interpreter;
                 break;
         }
         for (var i = 0; i < positions.length; i++) {
-            if (interpretObject(location.entity.object, state, positions[i].col, positions[i].row))
+            var pos = positions[i];
+            if (pos.matched) {
+                if (location.entity.object.location) {
+                    return interpretLocation(location.entity.object.location, state, pos.col, pos.row);
+                }
                 return true;
+            }
         }
         return false;
     }

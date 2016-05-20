@@ -45,17 +45,17 @@ module Interpreter {
         var interpretations:InterpretationResult[] = [];
 
 
-        try {
-            var result:InterpretationResult = <InterpretationResult>parses[0];
+        /*try {
+            var result:InterpretationResult = <InterpretationResult>parses[1];
             result.interpretation = interpretCommand(result.parse, currentState);
             // NOTE: We did not now what to return if there was no result so we return null, if so we do not add it
             if (result.interpretation) interpretations.push(result);
         } catch (err) {
             errors.push(err);
-        }
+        }*/
 
 
-        /*
+
         parses.forEach((parseresult) => {
             try {
                 var result:InterpretationResult = <InterpretationResult>parseresult;
@@ -65,7 +65,7 @@ module Interpreter {
             } catch (err) {
                 errors.push(err);
             }
-        });*/
+        });
 
 
         if (interpretations.length) {
@@ -260,7 +260,7 @@ module Interpreter {
     type  MatchObject = {
         col: number,
         row: number,
-        object: string,
+        matched: boolean,
     }
 
 
@@ -288,6 +288,11 @@ module Interpreter {
         && (obj.form == stateObject.form || (obj.form == "anyform" && stateObject.form != "floor"));
     }
 
+    function getMatchedObject(col: number, row: number, obj : Parser.Object, state: WorldState) : MatchObject
+    {
+        return {col: col, row: row, matched: interpretObject(obj, state, col, row)};
+    }
+
     function interpretLocation(location : Parser.Location, state : WorldState, col : number, row : number) : boolean{
         let positions : MatchObject[] = [];
         // console.log("here again....", location.entity);
@@ -301,43 +306,27 @@ module Interpreter {
                 // x is beside y if they are in adjacent stacks.
                 if(col < state.stacks.length){
                     let dCol : number = col + 1;
-                    positions.push({
-                        object: state.stacks[dCol][row],
-                        col: dCol,
-                        row: row
-                    });
+                    positions.push(getMatchedObject(dCol, row, location.entity.object, state));
                 }
                 if(col > 0){
                     let dCol = col - 1;
-                    positions.push({
-                        object: state.stacks[dCol][row],
-                        col: dCol,
-                        row: row
-                    });
+                    positions.push(getMatchedObject(dCol, row, location.entity.object, state));
                 }
                 break;
 
             case RELATION.leftof:
                 // x is left of y if it is somewhere to the left.
                 for(let dCol : number = col - 1; dCol >= 0; dCol--) {
-                    for(let dRow : number = 0; row < state.stacks[dCol].length; dRow++){
-                        positions.push({
-                            object: state.stacks[dCol][dRow],
-                            col: dCol,
-                            row: dRow
-                        });
+                    for(let dRow : number = 0; dRow < state.stacks[dCol].length; dRow++){
+                        positions.push(getMatchedObject(dCol, dRow, location.entity.object, state));
                     }
                 }
                 break;
             case RELATION.rightof:
                 // x is right of y if it is somewhere to the right.
                 for (let dCol : number = col + 1; dCol < (state.stacks.length - 1); dCol++) {
-                    for(let dRow : number = 0; row < state.stacks[dCol].length; dRow++){
-                        positions.push({
-                            object: state.stacks[dCol][dRow],
-                            col: dCol,
-                            row: dRow
-                        });
+                    for(let dRow : number = 0; dRow < state.stacks[dCol].length; dRow++){
+                        positions.push(getMatchedObject(dCol, dRow, location.entity.object, state));
                     }
                 }
 
@@ -347,22 +336,14 @@ module Interpreter {
             case RELATION.inside:
                 //x is on top of y if it is directly on top – the same relation is called inside if y is a box.
                 let dRow : number = row - 1;
-                positions.push({
-                    object: state.stacks[col][dRow],
-                    col: col,
-                    row: dRow
-                });
+                positions.push(getMatchedObject(col, dRow, location.entity.object, state));
                 break;
 
             case RELATION.under:
                 // x is under y if it is somewhere below.
                 if(row < (state.stacks[col].length - 1)){
                     let dRow = row + 1;
-                    positions.push({
-                        object: state.stacks[col][dRow],
-                        col: col,
-                        row: dRow
-                    });
+                    positions.push(getMatchedObject(col, dRow, location.entity.object, state));
                 }
                 break;
 
@@ -375,8 +356,15 @@ module Interpreter {
         }
 
         for(let i = 0; i < positions.length; i++) {
-            if(interpretObject(location.entity.object, state, positions[i].col, positions[i].row)) return true;
+            let pos: MatchObject = positions[i];
+            if(pos.matched){
+                if(location.entity.object.location){
+                    return interpretLocation(location.entity.object.location, state, pos.col, pos.row);
+                }
+                return true;
+            }
         }
+
         return false;
 
     }

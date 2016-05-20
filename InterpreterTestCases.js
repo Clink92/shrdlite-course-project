@@ -78,7 +78,7 @@ var allTestCases = [
 */
     { world: "small",
         utterance: "take a ball in a box left of a table",
-        interpretations: [["holding(f)"]]
+        interpretations: [["holding(f)"], ["holding(f)"]]
     }
 ];
 // /* Simple test cases for the ALL quantifier, uncomment if you want */
