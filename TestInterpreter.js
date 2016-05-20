@@ -54,7 +54,6 @@ if (typeof require !== 'undefined') {
 }
 ///<reference path="World.ts"/>
 ///<reference path="Parser.ts"/>
-///<reference path="lib/async.d.ts"/>
 /**
  * Interpreter module
  *
@@ -71,17 +70,11 @@ if (typeof require !== 'undefined') {
  * "b" is a table, the command "put the ball on the table" can be
  * interpreted as the literal ontop(a,b). More complex goals can be
  * written using conjunctions and disjunctions of these literals.
- *
- * In general, the module can take a list of possible parses and return
- * a list of possible interpretations, but the code to handle this has
- * already been written for you. The only part you need to implement is
- * the core interpretation function, namely `interpretCommand`, which produces a
- * single interpretation for a single command.
  */
 var Interpreter;
 (function (Interpreter) {
     /**
-     Top-level function for the Interpreter. It calls `interpretCommand` for each possible parse of the command. No need to change this one.
+     * Top-level function for the Interpreter. It calls `interpretCommand` for each possible parse of the command. No need to change this one.
      * @param parses List of parses produced by the Parser.
      * @param currentState The current state of the world.
      * @returns Augments ParseResult with a list of interpretations. Each interpretation is represented by a list of Literals.
@@ -89,14 +82,6 @@ var Interpreter;
     function interpret(parses, currentState) {
         var errors = [];
         var interpretations = [];
-        /*try {
-            var result:InterpretationResult = <InterpretationResult>parses[1];
-            result.interpretation = interpretCommand(result.parse, currentState);
-            // NOTE: We did not now what to return if there was no result so we return null, if so we do not add it
-            if (result.interpretation) interpretations.push(result);
-        } catch (err) {
-            errors.push(err);
-        }*/
         parses.forEach(function (parseresult) {
             try {
                 var result = parseresult;
@@ -129,8 +114,6 @@ var Interpreter;
         return (lit.polarity ? "" : "-") + lit.relation + "(" + lit.args.join(",") + ")";
     }
     Interpreter.stringifyLiteral = stringifyLiteral;
-    //////////////////////////////////////////////////////////////////////
-    // private functions
     var SIZE;
     (function (SIZE) {
         SIZE[SIZE["small"] = 0] = "small";
@@ -153,22 +136,21 @@ var Interpreter;
         pyramid: 'pyramid',
         box: 'box',
         table: 'table',
-        floor: 'floor'
+        floor: 'floor',
+        anyform: 'anyform'
     };
-    var COLOR = {
-        red: 'red',
-        black: 'black',
-        blue: 'blue',
-        green: 'green',
-        yellow: 'yellow',
-        white: 'white'
-    };
+    //////////////////////////////////////////////////////////////////////
+    // private functions
     /**
      *
+     * The implementation of the interpreter
      *
-     * @param cmd The actual command. Note that it is *not* a string, but rather an object of type `Command` (as it has been parsed by the parser).
-     * @param state The current state of the world. Useful to look up objects in the world.
-     * @returns A list of list of Literal, representing a formula in disjunctive normal form (disjunction of conjunctions). See the dummy interpetation returned in the code for an example, which means ontop(a,floor) AND holding(b).
+     * @param   cmd The actual command. Note that it is *not* a string,
+     *          but rather an object of type `Command` (as it has been parsed by the parser).
+     * @param   state The current state of the world. Useful to look up objects in the world.
+     * @returns A list of list of Literal, representing a formula in disjunctive normal form
+     *          (disjunction of conjunctions). See the dummy interpetation returned in the code
+     *          for an example, which means ontop(a,floor) AND holding(b).
      */
     function interpretCommand(cmd, state) {
         var interpretation = [];
@@ -193,24 +175,20 @@ var Interpreter;
                             // small objects cannot support large objects
                             var stateObj = state.objects[obj];
                             var stateLocObj = state.objects[locObj];
-                            // Depending on the type of relationship we define different laws
-                            /*
-                             Physical laws
-
-                             The world is ruled by physical laws that constrain the placement and movement of the objects:
-                                 The floor can support at most N objects (beside each other).
-                                 All objects must be supported by something.
-                                 The arm can only pick up free objects.
-                             */
+                            // The spatial relation ontop and inside are treated the same way.
+                            // Under is handled in the same way except that we change the polarity
+                            // of the check.
                             switch (location.relation) {
                                 case RELATION.inside:
                                 case RELATION.ontop:
-                                    if (checkPhysicalLaws(stateObj, stateLocObj, true))
+                                    if (checkPhysicalLaws(stateObj, stateLocObj, true)) {
                                         interpretation.push(getGoal(true, location.relation, [obj, locObj]));
+                                    }
                                     break;
                                 case RELATION.under:
-                                    if (checkPhysicalLaws(stateObj, stateLocObj, false))
+                                    if (checkPhysicalLaws(stateObj, stateLocObj, false)) {
                                         interpretation.push(getGoal(true, location.relation, [obj, locObj]));
+                                    }
                                     break;
                                 default:
                                     interpretation.push(getGoal(true, location.relation, [obj, locObj]));
@@ -227,18 +205,18 @@ var Interpreter;
         return (interpretation.length !== 0) ? interpretation : null;
     }
     /**
-     * Finds all the objects that matches the entity description and returns the
+     * Finds all the objects that matches the entity description
      *
-     * @param entity
-     * @param state
-     * @returns {string[]}
+     * @param entity that we search for
+     * @param state of the world
+     * @returns {string[]} with the objects inside the world state that match the entity
      */
     function interpretEntity(entity, state) {
         var obj = entity.object;
         var objects = [];
         // If we search for a floor we add it
         if (interpretObject(obj, state, 0, -1)) {
-            objects.push("floor");
+            objects.push(FORM.floor);
             return objects;
         }
         // we make a search through the world state to find objects that match our description
@@ -255,55 +233,87 @@ var Interpreter;
     }
     /**
      *
-     * @param obj
-     * @param state
-     * @param col
-     * @param row
-     * @returns {boolean}
+     * Interprets the object, makes recursive calls if there is a location else it matches the object against a state
+     * object.
+     *
+     * @param obj description that we search for
+     * @param state of the world
+     * @param col of the state object that we compare to
+     * @param row of the state object that we compare to
+     * @returns {boolean} depending on if the state object is a match with the parsed object
      */
     function interpretObject(obj, state, col, row) {
-        var stateObject = (row == -1) ? { form: "floor" } : state.objects[state.stacks[col][row]];
-        if (!obj || !stateObject)
-            return false;
+        var stateObject = (row == -1) ? { form: FORM.floor } : state.objects[state.stacks[col][row]];
+        // If we have a location we make recursive calls until we find an object
+        // without one and check it against a state object
         if (obj.location) {
+            // If the object has a location we know that it also contains an object
+            // therefore we interpret the object as well as follow the location to
+            // make sure the both are a match
             return interpretObject(obj.object, state, col, row) && interpretLocation(obj.location, state, col, row);
         }
         else {
             return isObjectMatch(obj, stateObject);
         }
     }
+    /**
+     *
+     * A check to determine if the object description matches a state object
+     *
+     * @param obj that we compare with stateObject
+     * @param stateObject that we compare with obj
+     * @returns {boolean} if its a match or not
+     */
     function isObjectMatch(obj, stateObject) {
         return (obj.color == stateObject.color || obj.color == null)
             && (obj.size == stateObject.size || obj.size == null)
-            && (obj.form == stateObject.form || (obj.form == "anyform" && stateObject.form != "floor"));
+            && (obj.form == stateObject.form || obj.form == FORM.anyform && stateObject.form != FORM.floor);
     }
-    function getMatchedObject(col, row, obj, state) {
+    /**
+     *
+     * Interprets an object and returns a matched object
+     *
+     * @param col of were the state object is positioned in the world state
+     * @param row of were the state object is positioned in the world state
+     * @param obj that we want to compare against the state object
+     * @param state of the world
+     * @returns {{col: number, row: number, matched: boolean}}
+     */
+    function getMatchedObject(obj, state, col, row) {
         return { col: col, row: row, matched: interpretObject(obj, state, col, row) };
     }
+    /**
+     *
+     * Interpret the location by following the location relation and checking if the object is a match or not with
+     * the state object
+     *
+     * @param location that we want to interpret
+     * @param state of the world
+     * @param col of the position inside the state
+     * @param row of the position inside the state
+     * @returns {boolean} if the location is a match with the state position we are at
+     */
     function interpretLocation(location, state, col, row) {
-        var positions = [];
-        // console.log("here again....", location.entity);
+        var matchedObject = [];
         // If there is a location defined and that location object matches the state object
         // we handle the relation
-        // We make recursive calls on the location match until there are no more locations, if there is a match on
-        // the final location we return true
         switch (location.relation) {
             case RELATION.beside:
                 // x is beside y if they are in adjacent stacks.
                 if (col < state.stacks.length) {
                     var dCol = col + 1;
-                    positions.push(getMatchedObject(dCol, row, location.entity.object, state));
+                    matchedObject.push(getMatchedObject(location.entity.object, state, dCol, row));
                 }
                 if (col > 0) {
                     var dCol = col - 1;
-                    positions.push(getMatchedObject(dCol, row, location.entity.object, state));
+                    matchedObject.push(getMatchedObject(location.entity.object, state, dCol, row));
                 }
                 break;
             case RELATION.leftof:
                 // x is left of y if it is somewhere to the left.
                 for (var dCol = col - 1; dCol >= 0; dCol--) {
                     for (var dRow_1 = 0; dRow_1 < state.stacks[dCol].length; dRow_1++) {
-                        positions.push(getMatchedObject(dCol, dRow_1, location.entity.object, state));
+                        matchedObject.push(getMatchedObject(location.entity.object, state, dCol, dRow_1));
                     }
                 }
                 break;
@@ -311,7 +321,7 @@ var Interpreter;
                 // x is right of y if it is somewhere to the right.
                 for (var dCol = col + 1; dCol < (state.stacks.length - 1); dCol++) {
                     for (var dRow_2 = 0; dRow_2 < state.stacks[dCol].length; dRow_2++) {
-                        positions.push(getMatchedObject(dCol, dRow_2, location.entity.object, state));
+                        matchedObject.push(getMatchedObject(location.entity.object, state, dCol, dRow_2));
                     }
                 }
                 break;
@@ -319,41 +329,57 @@ var Interpreter;
             case RELATION.inside:
                 //x is on top of y if it is directly on top – the same relation is called inside if y is a box.
                 var dRow = row - 1;
-                positions.push(getMatchedObject(col, dRow, location.entity.object, state));
+                matchedObject.push(getMatchedObject(location.entity.object, state, col, dRow));
                 break;
             case RELATION.under:
                 // x is under y if it is somewhere below.
                 if (row < (state.stacks[col].length - 1)) {
                     var dRow_3 = row + 1;
-                    positions.push(getMatchedObject(col, dRow_3, location.entity.object, state));
+                    matchedObject.push(getMatchedObject(location.entity.object, state, col, dRow_3));
                 }
                 break;
             case RELATION.above:
                 // x is above y if it is somewhere above.
+                for (var dRow_4 = row + 1; dRow_4 < matchedObject.length; dRow_4++) {
+                    matchedObject.push(getMatchedObject(location.entity.object, state, col, dRow_4));
+                }
                 break;
             default:
                 break;
         }
-        for (var i = 0; i < positions.length; i++) {
-            var pos = positions[i];
-            if (pos.matched) {
+        // We go through each object that fits the spatial relation
+        // if it is a match we follow the location if we have one
+        // else we return true since we found a match
+        for (var i = 0; i < matchedObject.length; i++) {
+            var mObj = matchedObject[i];
+            if (mObj.matched) {
                 if (location.entity.object.location) {
-                    return interpretLocation(location.entity.object.location, state, pos.col, pos.row);
+                    return interpretLocation(location.entity.object.location, state, mObj.col, mObj.row);
                 }
                 return true;
             }
         }
         return false;
     }
+    /**
+     *
+     * Makes a check for the physical laws
+     *
+     * @param obj that we want compare with locObj to make sure that they follow the physical laws
+     * @param locObj same as for obj
+     * @param polarity inverts the nature of the relation
+     * @returns {boolean} if it follows the physical laws or not
+     */
     function checkPhysicalLaws(obj, locObj, polarity) {
-        // Balls cannot support anything. /
+        // Balls cannot support anything.
         if (!polarity) {
             var temp = obj;
             obj = locObj;
             locObj = temp;
         }
-        if (locObj.form === FORM.ball)
+        if (locObj.form === FORM.ball) {
             return false;
+        }
         //Small objects cannot support large objects.
         if (lte(obj.size, locObj.size)) {
             switch (obj.form) {
@@ -384,9 +410,9 @@ var Interpreter;
     /**
      * Returns a goal for the DNF
      *
-     * @param pol
-     * @param rel
-     * @param args
+     * @param pol polarity
+     * @param rel relation
+     * @param args arguments
      * @returns {Interpreter.Literal[]}
      */
     function getGoal(pol, rel, args) {
@@ -402,7 +428,7 @@ var Interpreter;
      *  Get the enum size according to the string that is passed into the function
      *
      * @param size string
-     * @returns {SIZE}
+     * @returns {SIZE} enum that is related to the the string
      */
     function getSize(size) {
         switch (size) {
@@ -424,6 +450,13 @@ var Interpreter;
     function lte(size1, size2) {
         return getSize(size1) <= getSize(size2);
     }
+    /**
+     * A check for equality
+     *
+     * @param size1
+     * @param size2
+     * @returns {boolean}
+     */
     function equalSize(size1, size2) {
         return getSize(size1) == getSize(size2);
     }
@@ -947,83 +980,67 @@ ExampleWorlds["impossible"] = {
     ]
 };
 var allTestCases = [
-    /*
-{world: "small",
- utterance: "take an object",
- interpretations: [["holding(e)", "holding(f)", "holding(g)", "holding(k)", "holding(l)", "holding(m)"]]
-},
-
-{world: "small",
- utterance: "take a blue object",
- interpretations: [["holding(g)", "holding(m)"]]
-},
-
-{world: "small",
- utterance: "take a box",
- interpretations: [["holding(k)", "holding(l)", "holding(m)"]]
-},
-
-{world: "small",
- utterance: "put a ball in a box",
- interpretations: [["inside(e,k)", "inside(e,l)", "inside(f,k)", "inside(f,l)", "inside(f,m)"]]
-},
-
-{world: "small",
- utterance: "put a ball on a table",
- interpretations: []
-},
-
-{world: "small",
- utterance: "put a ball above a table",
- interpretations: [["above(e,g)", "above(f,g)"]]
-},
-
-{world: "small",
- utterance: "put a big ball in a small box",
- interpretations: []
-},
-
-{world: "small",
- utterance: "put a ball left of a ball",
- interpretations: [["leftof(e,f)", "leftof(f,e)"]]
-},
-
-{world: "small",
- utterance: "take a white object beside a blue object",
- interpretations: [["holding(e)"]]
-},
-
-{world: "small",
- utterance: "put a white object beside a blue object",
- interpretations: [["beside(e,g) | beside(e,m)"]]
-},
-
-{world: "small",
- utterance: "put a ball in a box on the floor",
- interpretations: [["inside(e,k)", "inside(f,k)"], ["ontop(f,floor)"]]
-},
-
-{world: "small",
- utterance: "put a white ball in a box on the floor",
- interpretations: [["inside(e,k)"]]
-},
-
-{world: "small",
- utterance: "put a black ball in a box on the floor",
- interpretations: [["inside(f,k)"], ["ontop(f,floor)"]]
-},
-
-// Under
-{world: "small",
-    utterance: "put the yellow box below the blue box",
-    interpretations: [["under(k,m)"]]
-},
-
-{world: "small",
-    utterance: "put the yellow box on the floor beside the blue box",
-    interpretations: [["beside(k,m)"]]
-},
-*/
+    { world: "small",
+        utterance: "take an object",
+        interpretations: [["holding(e)", "holding(f)", "holding(g)", "holding(k)", "holding(l)", "holding(m)"]]
+    },
+    { world: "small",
+        utterance: "take a blue object",
+        interpretations: [["holding(g)", "holding(m)"]]
+    },
+    { world: "small",
+        utterance: "take a box",
+        interpretations: [["holding(k)", "holding(l)", "holding(m)"]]
+    },
+    { world: "small",
+        utterance: "put a ball in a box",
+        interpretations: [["inside(e,k)", "inside(e,l)", "inside(f,k)", "inside(f,l)", "inside(f,m)"]]
+    },
+    { world: "small",
+        utterance: "put a ball on a table",
+        interpretations: []
+    },
+    { world: "small",
+        utterance: "put a ball above a table",
+        interpretations: [["above(e,g)", "above(f,g)"]]
+    },
+    { world: "small",
+        utterance: "put a big ball in a small box",
+        interpretations: []
+    },
+    { world: "small",
+        utterance: "put a ball left of a ball",
+        interpretations: [["leftof(e,f)", "leftof(f,e)"]]
+    },
+    { world: "small",
+        utterance: "take a white object beside a blue object",
+        interpretations: [["holding(e)"]]
+    },
+    { world: "small",
+        utterance: "put a white object beside a blue object",
+        interpretations: [["beside(e,g) | beside(e,m)"]]
+    },
+    { world: "small",
+        utterance: "put a ball in a box on the floor",
+        interpretations: [["inside(e,k)", "inside(f,k)"], ["ontop(f,floor)"]]
+    },
+    { world: "small",
+        utterance: "put a white ball in a box on the floor",
+        interpretations: [["inside(e,k)"]]
+    },
+    { world: "small",
+        utterance: "put a black ball in a box on the floor",
+        interpretations: [["inside(f,k)"], ["ontop(f,floor)"]]
+    },
+    // Under
+    { world: "small",
+        utterance: "put the yellow box below the blue box",
+        interpretations: [["under(k,m)"]]
+    },
+    { world: "small",
+        utterance: "put the yellow box on the floor beside the blue box",
+        interpretations: [["beside(k,m)"]]
+    },
     { world: "small",
         utterance: "take a ball in a box left of a table",
         interpretations: [["holding(f)"], ["holding(f)"]]

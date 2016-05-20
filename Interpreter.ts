@@ -19,12 +19,6 @@ import Entity = Parser.Entity;
  * "b" is a table, the command "put the ball on the table" can be
  * interpreted as the literal ontop(a,b). More complex goals can be
  * written using conjunctions and disjunctions of these literals.
- *
- * In general, the module can take a list of possible parses and return
- * a list of possible interpretations, but the code to handle this has
- * already been written for you. The only part you need to implement is
- * the core interpretation function, namely `interpretCommand`, which produces a
- * single interpretation for a single command.
  */
 module Interpreter {
 
@@ -78,7 +72,7 @@ module Interpreter {
          * (true polarity) or not (false polarity). For example, we
          * can specify that "a" should *not* be on top of "b" by the
          * literal {polarity: false, relation: "ontop", args:
-	 * ["a","b"]}.
+	     * ["a","b"]}.
          */
         polarity: boolean;
         /** The name of the relation in question. */
@@ -425,6 +419,8 @@ module Interpreter {
                         // Large boxes cannot be supported by large pyramids.
                         return !(locObj.form === FORM.pyramid);
                     }
+
+                    return true;
 
                 default:
                     return true;
