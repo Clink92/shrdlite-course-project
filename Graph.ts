@@ -66,8 +66,10 @@ function aStarSearch<Node> (
         path: [],
         cost: 0
     };
+
     let startTime: number = Date.now();
     let deltaTime: number = 0;
+
     var fScore : collections.Dictionary<Node, number> = new collections.Dictionary<Node, number>();
     var gScore : collections.Dictionary<Node, number> = new collections.Dictionary<Node, number>();
 	

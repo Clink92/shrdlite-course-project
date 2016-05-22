@@ -113,41 +113,47 @@ var Interpreter;
             var locationObjects = interpretEntity(location.entity, state, true);
             objects.forEach(function (obj) {
                 locationObjects.forEach(function (locObj) {
-                    if (state.objects[obj] !== state.objects[locObj]) {
-                        // If the location is a floor we can always place the object there
-                        // If we have a stack relationship we need to check that it fulfills the physical laws
-                        if (locObj !== "floor" && checkStackRelation(location.relation)) {
-                            // small objects cannot support large objects
-                            var stateObj = state.objects[obj];
-                            var stateLocObj = state.objects[locObj];
-                            // The spatial relation ontop and inside are treated the same way.
-                            // Under is handled in the same way except that we change the polarity
-                            // of the check.
-                            switch (location.relation) {
-                                case RELATION.inside:
-                                case RELATION.ontop:
-                                    if (checkPhysicalLaws(stateObj, stateLocObj, true)) {
-                                        interpretation.push(getGoal(true, location.relation, [obj, locObj]));
-                                    }
-                                    break;
-                                case RELATION.under:
-                                    if (checkPhysicalLaws(stateObj, stateLocObj, false)) {
-                                        interpretation.push(getGoal(true, location.relation, [obj, locObj]));
-                                    }
-                                    break;
-                                default:
-                                    interpretation.push(getGoal(true, location.relation, [obj, locObj]));
-                                    break;
-                            }
-                        }
-                        else {
-                            interpretation.push(getGoal(true, location.relation, [obj, locObj]));
-                        }
+                    // Push the interpretation if it passes the physical laws
+                    if (state.objects[obj] !== state.objects[locObj]
+                        && passLaws(state.objects[obj], state.objects[locObj], location.relation, locObj === FORM.floor)) {
+                        interpretation.push(getGoal(true, location.relation, [obj, locObj]));
                     }
                 });
             });
         }
         return (interpretation.length !== 0) ? interpretation : null;
+    }
+    /**
+     * Check if an interpretation passes the physical laws of the world.
+     *
+     * @param obj The object
+     * @param locObj The location object
+     * @param relation The relation between the objects
+     * @param isFloor If the object is the floor
+     * @returns True if it passes the laws
+     */
+    function passLaws(obj, locObj, relation, isFloor) {
+        var pass = true;
+        if (!isFloor && checkStackRelation(relation)) {
+            // The spatial relation ontop and inside are treated the same way.
+            // Under is handled in the same way except that we change the polarity
+            // of the check.
+            switch (relation) {
+                case RELATION.inside:
+                case RELATION.ontop:
+                    pass = checkPhysicalLaws(obj, locObj, true);
+                    break;
+                case RELATION.under:
+                    pass = checkPhysicalLaws(obj, locObj, false);
+                    break;
+                default:
+                    break;
+            }
+        }
+        else if (isFloor) {
+            pass = (relation === RELATION.ontop || relation === RELATION.above);
+        }
+        return pass;
     }
     /**
      * Finds all the objects that matches the entity description
@@ -260,7 +266,8 @@ var Interpreter;
                 break;
             case RELATION.leftof:
                 // x is left of y if it is somewhere to the left.
-                for (var dCol = col - 1; dCol >= 0; dCol--) {
+                //for(let dCol: number = col - 1; dCol >= 0; dCol--) {
+                for (var dCol = col + 1; dCol < state.stacks.length - 1; dCol++) {
                     for (var dRow_1 = 0; dRow_1 < state.stacks[dCol].length; dRow_1++) {
                         matchedObject.push(getMatchedObject(location.entity.object, state, dCol, dRow_1));
                     }
@@ -268,7 +275,8 @@ var Interpreter;
                 break;
             case RELATION.rightof:
                 // x is right of y if it is somewhere to the right.
-                for (var dCol = col + 1; dCol < (state.stacks.length - 1); dCol++) {
+                //for (let dCol: number = col + 1; dCol < (state.stacks.length - 1); dCol++) {
+                for (var dCol = col - 1; dCol >= 0; dCol--) {
                     for (var dRow_2 = 0; dRow_2 < state.stacks[dCol].length; dRow_2++) {
                         matchedObject.push(getMatchedObject(location.entity.object, state, dCol, dRow_2));
                     }
