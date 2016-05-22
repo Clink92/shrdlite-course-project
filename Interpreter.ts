@@ -324,7 +324,8 @@ module Interpreter {
 
             case RELATION.leftof:
                 // x is left of y if it is somewhere to the left.
-                for(let dCol: number = col - 1; dCol >= 0; dCol--) {
+                //for(let dCol: number = col - 1; dCol >= 0; dCol--) {
+                for (let dCol: number = col + 1; dCol < state.stacks.length -1; dCol++) {
                     for(let dRow: number = 0; dRow < state.stacks[dCol].length; dRow++){
                         matchedObject.push(getMatchedObject(location.entity.object, state, dCol, dRow));
                     }
@@ -332,7 +333,8 @@ module Interpreter {
                 break;
             case RELATION.rightof:
                 // x is right of y if it is somewhere to the right.
-                for (let dCol: number = col + 1; dCol < (state.stacks.length - 1); dCol++) {
+                //for (let dCol: number = col + 1; dCol < (state.stacks.length - 1); dCol++) {
+                for (let dCol: number = col - 1; dCol >= 0; dCol--) {
                     for(let dRow: number = 0; dRow < state.stacks[dCol].length; dRow++){
                         matchedObject.push(getMatchedObject(location.entity.object, state, dCol, dRow));
                     }

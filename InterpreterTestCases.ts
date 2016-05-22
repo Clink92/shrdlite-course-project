@@ -84,7 +84,7 @@ var allTestCases : TestCase[] = [
     },
 
     {world: "small",
-        utterance: "take a ball in a box left of a table",
+        utterance: "take a ball in a box right of a table",
         interpretations: [["holding(f)"],["holding(f)"]]
     },
 
@@ -92,7 +92,19 @@ var allTestCases : TestCase[] = [
         world: "small",
         utterance: "take the floor",
         interpretations: []
-    }
+    },
+
+    {
+        world: "small",
+        utterance: "take a ball left of a table",
+        interpretations: [["holding(e)"]]
+    },
+
+    {
+        world: "small",
+        utterance: "take a ball right of a table",
+        interpretations: [["holding(f)"]]
+    },
 ];
 
 
