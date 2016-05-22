@@ -5,7 +5,7 @@
 
 import DNFFormula = Interpreter.DNFFormula;
 import Entity = Parser.Entity;
-var bunyan = require('bunyan');
+//var bunyan = require('bunyan');
 
 /**
  * Interpreter module
@@ -30,7 +30,7 @@ module Interpreter {
     // exported functions, classes and interfaces/types
 
     import Command = Parser.Command;
-    let log: any = bunyan.createLogger({name: "Interpreter"});
+    //let log: any = bunyan.createLogger({name: "Interpreter"});
 
     /**
      * Top-level function for the Interpreter. It calls `interpretCommand` for each possible parse of the command. No need to change this one.
@@ -153,7 +153,6 @@ module Interpreter {
                 // The arm can only hold one object at the time.
                 interpretation.push(getGoal(true, "holding", [obj]));
             });
-            log.info("The arm is not holding an object");
         }
         else if(state.holding) {
             log.error("The arm is already holding an object");
@@ -328,17 +327,21 @@ module Interpreter {
                 // x is beside y if they are in adjacent stacks.
                 if(col < state.stacks.length){
                     let dCol: number = col + 1;
-                    matchedObject.push(getMatchedObject(location.entity.object, state, dCol, row));
+                    for(let dRow: number = 0; dRow < state.stacks[dCol].length; dRow++){
+                        matchedObject.push(getMatchedObject(location.entity.object, state, dCol, dRow));
+                    }
                 }
                 if(col > 0){
                     let dCol = col - 1;
-                    matchedObject.push(getMatchedObject(location.entity.object, state, dCol, row));
+                    for(let dRow: number = 0; dRow < state.stacks[dCol].length; dRow++){
+                        matchedObject.push(getMatchedObject(location.entity.object, state, dCol, dRow));
+                    }
                 }
+
                 break;
 
             case RELATION.leftof:
                 // x is left of y if it is somewhere to the left.
-                //for(let dCol: number = col - 1; dCol >= 0; dCol--) {
                 for (let dCol: number = col + 1; dCol < state.stacks.length -1; dCol++) {
                     for(let dRow: number = 0; dRow < state.stacks[dCol].length; dRow++){
                         matchedObject.push(getMatchedObject(location.entity.object, state, dCol, dRow));
@@ -348,7 +351,6 @@ module Interpreter {
 
             case RELATION.rightof:
                 // x is right of y if it is somewhere to the right.
-                //for (let dCol: number = col + 1; dCol < (state.stacks.length - 1); dCol++) {
                 for (let dCol: number = col - 1; dCol >= 0; dCol--) {
                     for(let dRow: number = 0; dRow < state.stacks[dCol].length; dRow++){
                         matchedObject.push(getMatchedObject(location.entity.object, state, dCol, dRow));
