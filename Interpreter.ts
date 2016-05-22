@@ -153,45 +153,48 @@ module Interpreter {
 
             objects.forEach((obj): void => {
                 locationObjects.forEach((locObj): void => {
-                    if (state.objects[obj] !== state.objects[locObj]) {
-
-                        // If the location is a floor we can always place the object there
-                        // If we have a stack relationship we need to check that it fulfills the physical laws
-                        if (locObj !== "floor" && checkStackRelation(location.relation)) {
-
-                            // small objects cannot support large objects
-                            let stateObj: Parser.Object = state.objects[obj];
-                            let stateLocObj: Parser.Object = state.objects[locObj];
-
-                            // The spatial relation ontop and inside are treated the same way.
-                            // Under is handled in the same way except that we change the polarity
-                            // of the check.
-                            switch (location.relation) {
-                                case RELATION.inside:
-                                case RELATION.ontop:
-                                    if(checkPhysicalLaws(stateObj, stateLocObj, true)){
-                                        interpretation.push(getGoal(true, location.relation, [obj, locObj]));
-                                    }
-                                    break;
-                                case RELATION.under:
-                                    if(checkPhysicalLaws(stateObj, stateLocObj, false)){
-                                        interpretation.push(getGoal(true, location.relation, [obj, locObj]));
-                                    }
-                                    break;
-                                default:
-                                    interpretation.push(getGoal(true, location.relation, [obj, locObj]));
-                                    break;
-                            }
-                        }
-                        else {
+                    // Push the interpretation if it passes the physical laws
+                    if (state.objects[obj] !== state.objects[locObj]
+                        && passLaws(state.objects[obj], state.objects[locObj], location.relation, locObj === FORM.floor)) {
                             interpretation.push(getGoal(true, location.relation, [obj, locObj]));
-                        }
                     }
                 })
             });
         }
 
         return (interpretation.length !== 0) ? interpretation: null;
+    }
+
+    /**
+     * Check if an interpretation passes the physical laws of the world.
+     *
+     * @param obj The object
+     * @param locObj The location object
+     * @param relation The relation between the objects
+     * @param isFloor If the object is the floor
+     */
+    function passLaws(obj: Parser.Object, locObj: Parser.Object, relation: string, isFloor: boolean): boolean {
+        let pass: boolean = true;
+        if (!isFloor && checkStackRelation(relation)) {
+            // The spatial relation ontop and inside are treated the same way.
+            // Under is handled in the same way except that we change the polarity
+            // of the check.
+            switch (relation) {
+                case RELATION.inside:
+                case RELATION.ontop:
+                    pass = checkPhysicalLaws(obj, locObj, true);
+                    break;
+                case RELATION.under:
+                    pass = checkPhysicalLaws(obj, locObj, false);
+                    break;
+                default:
+                    break;
+            }
+        }
+        else if (isFloor) {
+            pass = (relation === RELATION.ontop || relation === RELATION.above);
+        }
+        return pass;
     }
 
     /**
@@ -331,6 +334,7 @@ module Interpreter {
                     }
                 }
                 break;
+
             case RELATION.rightof:
                 // x is right of y if it is somewhere to the right.
                 //for (let dCol: number = col + 1; dCol < (state.stacks.length - 1); dCol++) {
@@ -339,7 +343,6 @@ module Interpreter {
                         matchedObject.push(getMatchedObject(location.entity.object, state, dCol, dRow));
                     }
                 }
-
                 break;
 
             case RELATION.ontop:

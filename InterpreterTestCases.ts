@@ -105,6 +105,18 @@ var allTestCases : TestCase[] = [
         utterance: "take a ball right of a table",
         interpretations: [["holding(f)"]]
     },
+
+    {
+        world: "small",
+        utterance: "put a ball below the floor",
+        interpretations: []
+    },
+
+    {
+        world: "small",
+        utterance: "take a ball below the floor",
+        interpretations: []
+    },
 ];
 
 
