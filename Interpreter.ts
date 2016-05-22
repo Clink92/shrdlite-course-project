@@ -172,6 +172,7 @@ module Interpreter {
      * @param locObj The location object
      * @param relation The relation between the objects
      * @param isFloor If the object is the floor
+     * @returns True if it passes the laws
      */
     function passLaws(obj: Parser.Object, locObj: Parser.Object, relation: string, isFloor: boolean): boolean {
         let pass: boolean = true;

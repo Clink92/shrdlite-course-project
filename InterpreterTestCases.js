@@ -89,6 +89,11 @@ var allTestCases = [
         utterance: "take a ball below the floor",
         interpretations: []
     },
+    {
+        world: "small",
+        utterance: "take a ball beside a table beside a box",
+        interpretations: [[], ["holding(e)"]]
+    },
 ];
 // /* Simple test cases for the ALL quantifier, uncomment if you want */
 // allTestCases.push(

@@ -184,6 +184,7 @@ var Interpreter;
      * @param locObj The location object
      * @param relation The relation between the objects
      * @param isFloor If the object is the floor
+     * @returns True if it passes the laws
      */
     function passLaws(obj, locObj, relation, isFloor) {
         var pass = true;
@@ -1079,6 +1080,11 @@ var allTestCases = [
         world: "small",
         utterance: "take a ball below the floor",
         interpretations: []
+    },
+    {
+        world: "small",
+        utterance: "take a ball beside a table beside a box",
+        interpretations: [[], ["holding(e)"]]
     },
 ];
 // /* Simple test cases for the ALL quantifier, uncomment if you want */

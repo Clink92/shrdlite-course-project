@@ -130,6 +130,7 @@ var Interpreter;
      * @param locObj The location object
      * @param relation The relation between the objects
      * @param isFloor If the object is the floor
+     * @returns True if it passes the laws
      */
     function passLaws(obj, locObj, relation, isFloor) {
         var pass = true;
