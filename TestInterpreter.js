@@ -155,17 +155,16 @@ var Interpreter;
     function interpretCommand(cmd, state) {
         var interpretation = [];
         var location = cmd.location;
-        var objects = interpretEntity(cmd.entity, state);
+        var objects = interpretEntity(cmd.entity, state, false);
         // if there is no location we go through all the objects and assume we just pick them up
-        if (!location) {
+        if (!location && !state.holding) {
             objects.forEach(function (obj) {
                 // The arm can only hold one object at the time.
-                if (!state.holding)
-                    interpretation.push(getGoal(true, "holding", [obj]));
+                interpretation.push(getGoal(true, "holding", [obj]));
             });
         }
         else {
-            var locationObjects = interpretEntity(location.entity, state);
+            var locationObjects = interpretEntity(location.entity, state, true);
             objects.forEach(function (obj) {
                 locationObjects.forEach(function (locObj) {
                     if (state.objects[obj] !== state.objects[locObj]) {
@@ -211,13 +210,17 @@ var Interpreter;
      * @param state of the world
      * @returns {string[]} with the objects inside the world state that match the entity
      */
-    function interpretEntity(entity, state) {
+    function interpretEntity(entity, state, isLocation) {
         var obj = entity.object;
         var objects = [];
-        // If we search for a floor we add it
+        // If we search for the floor as a location we add it.
         if (interpretObject(obj, state, 0, -1)) {
-            objects.push(FORM.floor);
-            return objects;
+            if (isLocation) {
+                objects.push(FORM.floor);
+                return objects;
+            }
+            // Can't pick up floor
+            return null;
         }
         // we make a search through the world state to find objects that match our description
         for (var col = 0; col < state.stacks.length; col++) {
@@ -243,7 +246,7 @@ var Interpreter;
      * @returns {boolean} depending on if the state object is a match with the parsed object
      */
     function interpretObject(obj, state, col, row) {
-        var stateObject = (row == -1) ? { form: FORM.floor } : state.objects[state.stacks[col][row]];
+        var stateObject = (row == -1) ? { form: FORM.floor, size: null, color: null } : state.objects[state.stacks[col][row]];
         // If we have a location we make recursive calls until we find an object
         // without one and check it against a state object
         if (obj.location) {
@@ -1044,6 +1047,11 @@ var allTestCases = [
     { world: "small",
         utterance: "take a ball in a box left of a table",
         interpretations: [["holding(f)"], ["holding(f)"]]
+    },
+    {
+        world: "small",
+        utterance: "take the floor",
+        interpretations: []
     }
 ];
 // /* Simple test cases for the ALL quantifier, uncomment if you want */

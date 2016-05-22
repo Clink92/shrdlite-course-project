@@ -144,7 +144,7 @@ module Interpreter {
 
         let interpretation: DNFFormula = [];
         let location: Parser.Location = cmd.location;
-        let objects: string[] = interpretEntity(cmd.entity, state);
+        let objects: string[] = interpretEntity(cmd.entity, state, false);
 
         // if there is no location we go through all the objects and assume we just pick them up
         if (!location && !state.holding) {
@@ -154,7 +154,7 @@ module Interpreter {
             });
         }
         else {
-            var locationObjects: string[] = interpretEntity(location.entity, state);
+            var locationObjects: string[] = interpretEntity(location.entity, state, true);
 
             objects.forEach((obj): void => {
                 locationObjects.forEach((locObj): void => {
@@ -206,14 +206,18 @@ module Interpreter {
      * @param state of the world
      * @returns {string[]} with the objects inside the world state that match the entity
      */
-    function interpretEntity(entity: Parser.Entity, state: WorldState): string[] {
+    function interpretEntity(entity: Parser.Entity, state: WorldState, isLocation: boolean): string[] {
         var obj: Parser.Object = entity.object;
         var objects: string[] = [];
 
-        // If we search for a floor we add it
+        // If we search for the floor as a location we add it.
         if (interpretObject(obj, state, 0, -1)) {
-            objects.push(FORM.floor);
-            return objects;
+            if (isLocation) {
+                objects.push(FORM.floor);
+                return objects;
+            }
+            // Can't pick up floor
+            return null;
         }
 
         // we make a search through the world state to find objects that match our description
@@ -252,6 +256,7 @@ module Interpreter {
      */
     function interpretObject(obj: Parser.Object, state: WorldState, col: number, row: number): boolean {
         let stateObject: ObjectDefinition = (row == -1) ? {form: FORM.floor, size: null, color: null}:state.objects[state.stacks[col][row]];
+
         // If we have a location we make recursive calls until we find an object
         // without one and check it against a state object
         if(obj.location) {
