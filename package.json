@@ -7,6 +7,7 @@
     "doc": "doc"
   },
   "dependencies": {
+    "bunyan": "^1.8.1",
     "typescript-collections": "^1.1.2",
     "underscore": "^1.8.3"
   },
