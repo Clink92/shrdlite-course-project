@@ -54,6 +54,9 @@ if (typeof require !== 'undefined') {
 }
 ///<reference path="World.ts"/>
 ///<reference path="Parser.ts"/>
+///<reference path="lib/node.d.ts"/>
+///<reference path="lib/bunyan.d.ts"/>
+var bunyan = require('bunyan');
 /**
  * Interpreter module
  *
@@ -73,6 +76,7 @@ if (typeof require !== 'undefined') {
  */
 var Interpreter;
 (function (Interpreter) {
+    var log = bunyan.createLogger({ name: "Interpreter" });
     /**
      * Top-level function for the Interpreter. It calls `interpretCommand` for each possible parse of the command. No need to change this one.
      * @param parses List of parses produced by the Parser.
@@ -162,6 +166,10 @@ var Interpreter;
                 // The arm can only hold one object at the time.
                 interpretation.push(getGoal(true, "holding", [obj]));
             });
+            log.info("The arm is not holding an object");
+        }
+        else if (state.holding) {
+            log.error("The arm is already holding an object");
         }
         else {
             var locationObjects = interpretEntity(location.entity, state, true);

@@ -1,12 +1,11 @@
 ///<reference path="World.ts"/>
 ///<reference path="Parser.ts"/>
+///<reference path="lib/node.d.ts"/>
 ///<reference path="lib/bunyan.d.ts"/>
 
 import DNFFormula = Interpreter.DNFFormula;
 import Entity = Parser.Entity;
-import * as bunyan from 'bunyan';
-
-let log: bunyan.Logger = bunyan.createLogger("Interpreter");
+var bunyan = require('bunyan');
 
 /**
  * Interpreter module
@@ -31,6 +30,8 @@ module Interpreter {
     // exported functions, classes and interfaces/types
 
     import Command = Parser.Command;
+    let log: any = bunyan.createLogger({name: "Interpreter"});
+
     /**
      * Top-level function for the Interpreter. It calls `interpretCommand` for each possible parse of the command. No need to change this one.
      * @param parses List of parses produced by the Parser.
@@ -152,6 +153,10 @@ module Interpreter {
                 // The arm can only hold one object at the time.
                 interpretation.push(getGoal(true, "holding", [obj]));
             });
+            log.info("The arm is not holding an object");
+        }
+        else if(state.holding) {
+            log.error("The arm is already holding an object");
         }
         else {
             var locationObjects: string[] = interpretEntity(location.entity, state, true);
