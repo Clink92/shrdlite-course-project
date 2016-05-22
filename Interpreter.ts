@@ -1,8 +1,13 @@
 ///<reference path="World.ts"/>
 ///<reference path="Parser.ts"/>
+///<reference path="lib/bunyan.d.ts"/>
 
 import DNFFormula = Interpreter.DNFFormula;
 import Entity = Parser.Entity;
+import * as bunyan from 'bunyan';
+
+let log: bunyan.Logger = bunyan.createLogger("Interpreter");
+
 /**
  * Interpreter module
  *
@@ -142,10 +147,10 @@ module Interpreter {
         let objects: string[] = interpretEntity(cmd.entity, state);
 
         // if there is no location we go through all the objects and assume we just pick them up
-        if (!location) {
+        if (!location && !state.holding) {
             objects.forEach((obj): void => {
                 // The arm can only hold one object at the time.
-                if(!state.holding) interpretation.push(getGoal(true, "holding", [obj]));
+                interpretation.push(getGoal(true, "holding", [obj]));
             });
         }
         else {
@@ -245,9 +250,8 @@ module Interpreter {
      * @param row of the state object that we compare to
      * @returns {boolean} depending on if the state object is a match with the parsed object
      */
-    function interpretObject(obj: Parser.Object, state: WorldState, col: number, row: number):boolean {
-        let stateObject: Parser.Object = (row == -1) ? {form: FORM.floor}: state.objects[state.stacks[col][row]];
-
+    function interpretObject(obj: Parser.Object, state: WorldState, col: number, row: number): boolean {
+        let stateObject: ObjectDefinition = (row == -1) ? {form: FORM.floor, size: null, color: null}:state.objects[state.stacks[col][row]];
         // If we have a location we make recursive calls until we find an object
         // without one and check it against a state object
         if(obj.location) {
