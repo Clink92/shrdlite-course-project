@@ -1,4 +1,4 @@
 shrdlite-*.js
 Test.js
-node-modules
+./node-modules
 .idea

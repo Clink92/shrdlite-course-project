@@ -27,7 +27,7 @@ interface WorldState {
     /** The column position of the robot arm. */
     arm: number;
     /** A mapping from strings to `ObjectDefinition`s. The strings are meant to be identifiers for the objects (see ExampleWorlds.ts for an example). */
-    objects: { [s:string]: ObjectDefinition; };
+    objects: { [s:string]: ObjectDefinition; }; 
     /** List of predefined example sentences/utterances that the user can choose from in the UI. */
     examples: string[];
 }

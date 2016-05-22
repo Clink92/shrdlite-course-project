@@ -1,8 +1,12 @@
 ///<reference path="World.ts"/>
 ///<reference path="Parser.ts"/>
+///<reference path="lib/node.d.ts"/>
+///<reference path="lib/bunyan.d.ts"/>
 
 import DNFFormula = Interpreter.DNFFormula;
 import Entity = Parser.Entity;
+//var bunyan = require('bunyan');
+
 /**
  * Interpreter module
  *
@@ -26,6 +30,8 @@ module Interpreter {
     // exported functions, classes and interfaces/types
 
     import Command = Parser.Command;
+    //let log: any = bunyan.createLogger({name: "Interpreter"});
+
     /**
      * Top-level function for the Interpreter. It calls `interpretCommand` for each possible parse of the command. No need to change this one.
      * @param parses List of parses produced by the Parser.
@@ -148,6 +154,9 @@ module Interpreter {
                 interpretation.push(getGoal(true, "holding", [obj]));
             });
         }
+        else if(state.holding) {
+            log.error("The arm is already holding an object");
+        }
         else {
             var locationObjects: string[] = interpretEntity(location.entity, state, true);
 
@@ -254,7 +263,7 @@ module Interpreter {
      * @returns {boolean} depending on if the state object is a match with the parsed object
      */
     function interpretObject(obj: Parser.Object, state: WorldState, col: number, row: number): boolean {
-        let stateObject: ObjectDefinition = (row == -1) ? { form: FORM.floor, size : null, color : null } : state.objects[state.stacks[col][row]];
+        let stateObject: ObjectDefinition = (row == -1) ? {form: FORM.floor, size: null, color: null}:state.objects[state.stacks[col][row]];
 
         // If we have a location we make recursive calls until we find an object
         // without one and check it against a state object
@@ -318,17 +327,21 @@ module Interpreter {
                 // x is beside y if they are in adjacent stacks.
                 if(col < state.stacks.length){
                     let dCol: number = col + 1;
-                    matchedObject.push(getMatchedObject(location.entity.object, state, dCol, row));
+                    for(let dRow: number = 0; dRow < state.stacks[dCol].length; dRow++){
+                        matchedObject.push(getMatchedObject(location.entity.object, state, dCol, dRow));
+                    }
                 }
                 if(col > 0){
                     let dCol = col - 1;
-                    matchedObject.push(getMatchedObject(location.entity.object, state, dCol, row));
+                    for(let dRow: number = 0; dRow < state.stacks[dCol].length; dRow++){
+                        matchedObject.push(getMatchedObject(location.entity.object, state, dCol, dRow));
+                    }
                 }
+
                 break;
 
             case RELATION.leftof:
                 // x is left of y if it is somewhere to the left.
-                //for(let dCol: number = col - 1; dCol >= 0; dCol--) {
                 for (let dCol: number = col + 1; dCol < state.stacks.length -1; dCol++) {
                     for(let dRow: number = 0; dRow < state.stacks[dCol].length; dRow++){
                         matchedObject.push(getMatchedObject(location.entity.object, state, dCol, dRow));
@@ -338,7 +351,6 @@ module Interpreter {
 
             case RELATION.rightof:
                 // x is right of y if it is somewhere to the right.
-                //for (let dCol: number = col + 1; dCol < (state.stacks.length - 1); dCol++) {
                 for (let dCol: number = col - 1; dCol >= 0; dCol--) {
                     for(let dRow: number = 0; dRow < state.stacks[dCol].length; dRow++){
                         matchedObject.push(getMatchedObject(location.entity.object, state, dCol, dRow));

@@ -23,7 +23,7 @@ aStarTests: TestAStar.js
 	node $< all
 
 interpretationTests: TestInterpreter.js
-	node $< all
+	node $< all | ./node_modules/.bin/bunyan
 
 # Make TypeScript as strict as possible:
 TSC = tsc --noFallthroughCasesInSwitch --noImplicitReturns --noImplicitAny

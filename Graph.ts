@@ -1,3 +1,4 @@
+
 ///<reference path="lib/collections.ts"/>
 ///<reference path="lib/node.d.ts"/>
 
@@ -59,14 +60,16 @@ function aStarSearch<Node> (
     heuristics : (n:Node) => number,
     timeout : number
 ) : SearchResult<Node> 
-{	
-    // A dummy search result: it just picks the first possible neighbour
+{
     var result : SearchResult<Node> = 
 	{
         path: [],
         cost: 0
-        };
-    
+    };
+
+    let startTime: number = Date.now();
+    let deltaTime: number = 0;
+
     var fScore : collections.Dictionary<Node, number> = new collections.Dictionary<Node, number>();
     var gScore : collections.Dictionary<Node, number> = new collections.Dictionary<Node, number>();
 	
@@ -101,7 +104,7 @@ function aStarSearch<Node> (
     fScore.setValue(start, heuristics(start));
     openList.enqueue(start);
 
-    while(!openList.isEmpty())
+    while(!openList.isEmpty() && (deltaTime / 1e3) < timeout)
     {
         var current : Node = openList.dequeue();
 
@@ -163,6 +166,7 @@ function aStarSearch<Node> (
             gScore.setValue(child, tempGScore);            
         }
 
+        deltaTime = Date.now() - startTime ;
 	}
 
     return result;
