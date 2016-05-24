@@ -73,7 +73,7 @@ class GridGraph implements Graph<GridNode> {
         return outgoing;
     }
 
-    compareNodes(a : GridNode, b : GridNode) : number {
+    compareNodes(a: WorldNode, b: WorldNode): number {
         return a.compareTo(b);
     }
 

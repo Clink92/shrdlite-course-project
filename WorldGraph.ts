@@ -8,14 +8,15 @@ class WorldNode{
     add(stacks: Stack[], holding: string, arm: number): WorldNode{
         return new WorldNode(stacks, holding, arm);
     }
+
+    compareTo(other: WorldNode): number {
+        return this.stacks;
+    }
 }
 
 class WorldGraph implements Graph<WorldNode> {
-    private states:collections.Set<WorldNode>;
 
-    constructor(public state: WorldState) {
-        this.states = new collections.Set<WorldNode>();
-        this.states.add(new WorldNode(state.stacks, state.holding, state.arm));
+    constructor() {
     }
 
     outgoingEdges(node:WorldNode):Edge<WorldNode>[] {
@@ -26,23 +27,20 @@ class WorldGraph implements Graph<WorldNode> {
         if(node.arm > 0) nextList.push(goLeft(node));
         if(node.arm < node.stacks.length) nextList.push(goRight(node));
 
-
         let outgoing: Edge<WorldNode>[] = [];
 
         nextList.forEach((next): void => {
-            if (!this.states.contains(next)) {
-                outgoing.push({
-                    from: node,
-                    to: next,
-                    cost: 1
-                });
-            }
+            outgoing.push({
+                from: node,
+                to: next,
+                cost: 1
+            });
         });
 
         return outgoing;
     }
 
-    compareNodes(a:GridNode, b:GridNode):number {
+    compareNodes(a: GridNode, b: GridNode): number {
         return a.compareTo(b);
     }
 }

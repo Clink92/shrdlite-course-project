@@ -12,7 +12,8 @@
 
 import copy = collections.arrays.copy;
 import isUndefined = collections.isUndefined;
-//import {child} from "cluster";
+
+
 /** An edge in a graph. */
 class Edge<Node> {
     from : Node;
@@ -38,11 +39,7 @@ class SearchResult<Node> {
 
 
 /**
-* A\* search implementation, parameterised by a `Node` type. The code
-* here is just a template; you should rewrite this function
-* entirely. In this template, the code produces a dummy search result
-* which just picks the first possible neighbour.
-*
+ *
 * Note that you should not change the API (type) of this function,
 * only its body.
 * @param graph The graph on which to perform A\* search.
