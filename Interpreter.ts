@@ -1,9 +1,16 @@
 ///<reference path="World.ts"/>
 ///<reference path="Parser.ts"/>
 ///<reference path="lib/node.d.ts"/>
+///<reference path="PhysicalLaws.ts"/>
 
 import DNFFormula = Interpreter.DNFFormula;
 import Entity = Parser.Entity;
+
+import passLaws = PhysicalLaws.passLaws;
+import SIZE = PhysicalLaws.SIZE;
+import RELATION = PhysicalLaws.RELATION;
+import FORM = PhysicalLaws.FORM;
+
 //var bunyan = require('bunyan');
 
 /**
@@ -97,34 +104,7 @@ module Interpreter {
     export function stringifyLiteral(lit: Literal):string {
         return (lit.polarity ? "" : "-") + lit.relation + "(" + lit.args.join(",") + ")";
     }
-
-    enum SIZE {
-        small,
-        large,
-        undefined
-    }
-
-    const RELATION = {
-        ontop:      'ontop',
-        inside:     'inside',
-        above:      'above',
-        under:      'under',
-        beside:     'beside',
-        leftof:     'leftof',
-        rightof:    'rightof'
-    };
-
-    const FORM = {
-        brick:      'brick',
-        plank:      'plank',
-        ball:       'ball',
-        pyramid:    'pyramid',
-        box:        'box',
-        table:      'table',
-        floor:      'floor',
-        anyform:    'anyform',
-    };
-
+    
     //////////////////////////////////////////////////////////////////////
     // private functions
 
@@ -183,6 +163,7 @@ module Interpreter {
     function verticalRelationAllowed(obj: Parser.Object, locObj: Parser.Object, relation: string, isLocFloor: boolean): boolean {
         // Assume true since an object with no stack relation can always be placed
         let allowed: boolean = true;
+        
         if (!isLocFloor && checkStackRelation(relation)) {
             // The spatial relation ontop and inside are treated the same way.
             // Under is handled in the same way except that we change the polarity
@@ -190,10 +171,10 @@ module Interpreter {
             switch (relation) {
                 case RELATION.inside:
                 case RELATION.ontop:
-                    allowed = checkPhysicalLaws(obj, locObj, true);
+                    allowed = passLaws(obj, locObj, true);
                     break;
                 case RELATION.under:
-                    allowed = checkPhysicalLaws(obj, locObj, false);
+                    allowed = passLaws(obj, locObj, false);
                     break;
                 default:
                     break;
@@ -398,59 +379,7 @@ module Interpreter {
 
         return false;
     }
-
-    /**
-     *
-     * Makes a check for the physical laws
-     *
-     * @param obj that we want compare with locObj to make sure that they follow the physical laws
-     * @param locObj same as for obj
-     * @param polarity inverts the nature of the relation
-     * @returns {boolean} if it follows the physical laws or not
-     */
-    function checkPhysicalLaws(obj: Parser.Object, locObj: Parser.Object, polarity: boolean): boolean {
-        // Balls cannot support anything.
-        if(!polarity) {
-            let temp: Parser.Object = obj;
-            obj = locObj;
-            locObj = temp;
-        }
-
-        if(locObj.form === FORM.ball){
-            return false;
-        }
-
-        //Small objects cannot support large objects.
-        if(lte(obj.size, locObj.size)){
-
-            switch (obj.form) {
-                case FORM.ball:
-                    return locObj.form === FORM.box || locObj.form === FORM.floor;
-
-                case FORM.box:
-                    if(equalSize(obj.size, locObj.size)){
-                        // Boxes cannot contain pyramids, planks or boxes of the same size.
-                        return !(locObj.form === FORM.pyramid ||
-                                locObj.form === FORM.plank ||
-                                locObj.form === FORM.box);
-                    } else if(getSize(obj.size) === SIZE.small) {
-                        // Small boxes cannot be supported by small bricks or pyramids.
-                        return !(locObj.form === FORM.brick || locObj.form === FORM.pyramid);
-                    } else if(getSize(obj.size) == SIZE.large) {
-                        // Large boxes cannot be supported by large pyramids.
-                        return !(locObj.form === FORM.pyramid);
-                    }
-
-                    return true;
-
-                default:
-                    return true;
-            }
-        }
-
-        return false;
-    }
-
+    
     /**
      * Returns a goal for the DNF
      *
@@ -468,46 +397,7 @@ module Interpreter {
             }
         ];
     }
-
-    /**
-     *  Get the enum size according to the string that is passed into the function
-     *
-     * @param size string
-     * @returns {SIZE} enum that is related to the the string
-     */
-    function getSize(size: string): SIZE {
-        switch (size) {
-            case "small":
-                return SIZE.small;
-            case "large":
-                return SIZE.large;
-            default:
-                return SIZE.undefined
-        }
-    }
-
-    /**
-     * Simply a less than or equal for the Parse.Object
-     *
-     * @param size1
-     * @param size2
-     * @returns {boolean}
-     */
-    function lte(size1: string, size2: string) : boolean {
-        return getSize(size1) <= getSize(size2);
-    }
-
-    /**
-     * A check for equality
-     * 
-     * @param size1
-     * @param size2
-     * @returns {boolean}
-     */
-    function equalSize(size1: string, size2: string): boolean {
-        return getSize(size1) == getSize(size2);
-    }
-
+    
     /**
      *
      * Check to see if we have a stack relation in the world state
