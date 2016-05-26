@@ -12,6 +12,8 @@
 
 import copy = collections.arrays.copy;
 import isUndefined = collections.isUndefined;
+import Dictionary = collections.Dictionary;
+import PriorityQueue = collections.PriorityQueue;
 
 
 /** An edge in a graph. */
@@ -19,6 +21,7 @@ class Edge<Node> {
     from : Node;
     to   : Node;
     cost : number;
+    action: string;
 }
 
 /** A directed graph. */
@@ -35,6 +38,8 @@ class SearchResult<Node> {
     path : Node[];
     /** The total cost of the path. */
     cost : number;
+    /** The action performed to get to this node **/
+    actions: string[];
 }
 
 
@@ -42,6 +47,8 @@ class SearchResult<Node> {
  *
 * Note that you should not change the API (type) of this function,
 * only its body.
+ *
+ *
 * @param graph The graph on which to perform A\* search.
 * @param start The initial node.
 * @param goal A function that returns true when given a goal node. Used to determine if the algorithm has reached the goal.
@@ -60,23 +67,24 @@ function aStarSearch<Node> (
     var result : SearchResult<Node> = 
 	{
         path: [],
-        cost: 0
+        cost: 0,
+        actions: []
     };
 
     let startTime: number = Date.now();
     let deltaTime: number = 0;
 
-    var fScore : collections.Dictionary<Node, number> = new collections.Dictionary<Node, number>();
-    var gScore : collections.Dictionary<Node, number> = new collections.Dictionary<Node, number>();
+    var fScore : Dictionary<string, number> = new Dictionary<string, number>();
+    var gScore : Dictionary<string, number> = new Dictionary<string, number>();
 	
     // this dictionary keeps track of the best path's currently travelled
-    var cameFrom : collections.Dictionary<Node, Node>= new collections.Dictionary<Node, Node>();
+    var cameFrom : Dictionary<string, {node: Node, action: string}>= new Dictionary<string, {node: Node, action: string}>();
 
     // we send in a compare function to prioritize in a correct manner
-    var openList : collections.PriorityQueue<Node> = new collections.PriorityQueue<Node>(function(a : Node, b : Node)
+    var openList : PriorityQueue<Node> = new PriorityQueue<Node>(function(a : Node, b : Node)
 	{
-        var c1 : number = fScore.getValue(a),
-            c2 : number = fScore.getValue(b);
+        var c1 : number = fScore.getValue(JSON.stringify(a)),
+            c2 : number = fScore.getValue(JSON.stringify(b));
 
         // if the cost of a is less then b we prioritize it higher
         if(c1 < c2){
@@ -91,78 +99,91 @@ function aStarSearch<Node> (
 
 	
     // We add these primarily for the .contains() call to work as expected
-    // maybe a dictionary would be better here so we get an O(1) complexity instead when calling contains()
-    var frontier : collections.Set<Node> = new collections.Set<Node>();
-	var explored : collections.Set<Node> = new collections.Set<Node>();
+    var frontier : Dictionary<string, Node> = new Dictionary<string, Node>();
+	var explored : Dictionary<string, Node> = new Dictionary<string, Node>();
     
 	// Add start node
-    gScore.setValue(start, 0);
-    fScore.setValue(start, heuristics(start));
+    gScore.setValue(JSON.stringify(start), 0);
+    fScore.setValue(JSON.stringify(start), heuristics(start));
     openList.enqueue(start);
 
-    while(!openList.isEmpty() && (deltaTime / 1e3) < timeout)
+    while(!openList.isEmpty() && (deltaTime * 0.001) < timeout)
     {
+        console.log("TOP OF WHILE");
         var current : Node = openList.dequeue();
+        let currentKey: string = JSON.stringify(current);
+        console.log("Current node: ", current);
 
-        frontier.remove(current);
-        explored.add(current);
+        frontier.remove(currentKey);
+        explored.setValue(currentKey, current);
 
-        if(goal(current)) 
+        if(goal(current))
 		{
+            console.log("FOUND GOAL");
             // Goal found, reconstruct the path
-            var node : Node = current;
-			
-            while(cameFrom.containsKey(node))
+            let node: Node = current;
+            let key: string = JSON.stringify(node);
+            let cf: {node: Node, action: string};
+
+            console.log("Reconstructing path");
+            while(cameFrom.containsKey(key))
 			{
-                result.path.unshift(node);
-                node = cameFrom.getValue(node);
+                cf = cameFrom.getValue(key);
+                node = cf.node;
+                key = JSON.stringify(node);
+                result.path.unshift(cf.node);
+                result.actions.unshift(cf.action);
             }
 
             // Set the final path cost
-            result.cost = gScore.getValue(current);
+            result.cost = gScore.getValue(currentKey);
 
             break;
         }
 
 		// This holds a node's children
         var edges : Edge<Node>[] = graph.outgoingEdges(current);
+        console.log("EDGES", edges);
 
-		// Iterate through the node's children 
+		// Iterate through the node's children
         for(var i : number = 0; i < edges.length; i++)
 		{
+            console.log("checking outgoing edges");
             var child : Node = edges[i].to;
+            let childKey: string = JSON.stringify(child);
 
-			// There is a possibility that there's another way to this node, and if 
+			// There is a possibility that there's another way to this node, and if
 			// this is the case, ignore this node and continue with the next one
-            if(explored.contains(child))
+            if(explored.containsKey(childKey))
 			{
                 continue;
             }
 
-            var tempGScore : number = edges[i].cost + gScore.getValue(current);
+            var tempGScore : number = edges[i].cost + gScore.getValue(currentKey);
+            console.log("GSCORE", tempGScore);
             var tempFScore : number = tempGScore + heuristics(child);
 
-            if(!frontier.contains(child))			
-			{
-                frontier.add(child);
-				
+            if(!frontier.containsKey(childKey)){
+                console.log("ADDING CHILD");
+                frontier.setValue(childKey, child);
+
 				// NOTE: We have to add the f score to the node before we queue it in the open list
 				// to make sure that it is sorted correctly
-                fScore.setValue(child, tempFScore);
+                fScore.setValue(childKey, tempFScore);
                 openList.enqueue(child);
             }
-            else if (tempGScore >= gScore.getValue(child)) 
+            else if (tempGScore >= gScore.getValue(childKey))
 			{
                 // if the cost of this path is more then the old one we continue to other children
                 continue;
             }
-            else fScore.setValue(child, tempFScore);
+            else fScore.setValue(childKey, tempFScore);
             
-            cameFrom.setValue(child, current);
-            gScore.setValue(child, tempGScore);            
+            cameFrom.setValue(childKey, {node: current, action: edges[i].action});
+            gScore.setValue(childKey, tempGScore);
         }
 
-        deltaTime = Date.now() - startTime ;
+        deltaTime = Date.now() - startTime;
 	}
 
     return result;

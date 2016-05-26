@@ -59,7 +59,6 @@ module Interpreter {
             }
         });
 
-
         if (interpretations.length) {
             return interpretations;
         } else {
@@ -124,26 +123,41 @@ module Interpreter {
 
         let interpretation: DNFFormula = [];
         let location: Parser.Location = cmd.location;
-        let objects: string[] = findObjects(cmd.entity, state, false);
 
-        // if there is no location we go through all the objects and assume we just pick them up
-        if (!location && !state.holding) {
-            objects.forEach((obj): void => {
-                // The arm can only hold one object at the time.
-                interpretation.push(getGoal(true, "holding", [obj]));
-            });
-        }
-        else {
-            var locationObjects: string[] = findObjects(location.entity, state, true);
+        if(cmd.command !== "put"){
+            let objects: string[] = findObjects(cmd.entity, state, false);
 
-            objects.forEach((obj): void => {
-                locationObjects.forEach((locObj): void => {
-                    // Push the interpretation if it passes the physical laws
-                    if (state.objects[obj] !== state.objects[locObj]
-                        && verticalRelationAllowed(state.objects[obj], state.objects[locObj], location.relation, locObj === FORM.floor)) {
+            // if there is no location we go through all the objects and assume we just pick them up
+            if (!location) {
+                objects.forEach((obj): void => {
+                    // The arm can only hold one object at the time.
+                    interpretation.push(getGoal(true, "holding", [obj]));
+                });
+            }
+            else {
+                var locationObjects: string[] = findObjects(location.entity, state, true);
+
+                objects.forEach((obj): void => {
+                    locationObjects.forEach((locObj): void => {
+                        // Push the interpretation if it passes the physical laws
+                        if (state.objects[obj] !== state.objects[locObj]
+                            && verticalRelationAllowed(state.objects[obj], state.objects[locObj], location.relation, locObj === FORM.floor)) {
                             interpretation.push(getGoal(true, location.relation, [obj, locObj]));
-                    }
-                })
+                        }
+                    })
+                });
+            }
+
+        }
+        else if(cmd.command === "put") {
+            var locationObjects = findObjects(location.entity, state, true);
+
+            locationObjects.forEach(function (locObj) {
+                // Push the interpretation if it passes the physical laws
+                if (state.objects[state.holding] !== state.objects[locObj]
+                    && verticalRelationAllowed(state.objects[state.holding], state.objects[locObj], location.relation, locObj === FORM.floor)) {
+                    interpretation.push(getGoal(true, location.relation, [state.holding, locObj]));
+                }
             });
         }
 
@@ -160,7 +174,7 @@ module Interpreter {
      * @param isLocFloor If the location is the floor
      * @returns True if the vertical relation is allowed.
      */
-    function verticalRelationAllowed(obj: Parser.Object, locObj: Parser.Object, relation: string, isLocFloor: boolean): boolean {
+    function verticalRelationAllowed(obj: ObjectDefinition, locObj: ObjectDefinition, relation: string, isLocFloor: boolean): boolean {
         // Assume true since an object with no stack relation can always be placed
         let allowed: boolean = true;
         

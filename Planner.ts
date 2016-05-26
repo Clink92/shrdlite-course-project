@@ -1,5 +1,7 @@
 ///<reference path="World.ts"/>
 ///<reference path="Interpreter.ts"/>
+///<reference path="Graph.ts"/>
+///<reference path="WorldGraph.ts"/>
 
 /** 
 * Planner module
@@ -75,12 +77,86 @@ module Planner {
      * be added using the `push` method.
      */
     function planInterpretation(interpretation : Interpreter.DNFFormula, state : WorldState) : string[] {
-        // This function returns a dummy plan involving a random stack
-        do {
-            var pickstack = Math.floor(Math.random() * state.stacks.length);
-        } while (state.stacks[pickstack].length == 0);
+
         var plan : string[] = [];
 
+
+        let graph = new WorldGraph(state.objects);
+
+        let stacks: Stack[] = [];
+
+        // WE DONT LIKE ThEM NULLS, KÄFTEN ANDREAS!!!!
+        state.stacks.forEach((stack) => {
+            stacks.push(stack.filter((object) => {return object !== undefined; }));
+        });
+
+        console.log("stacks", stacks);
+
+        let startNode = new WorldNode(stacks, state.holding, state.arm);
+
+        type position = {
+            col: number;
+            row: number;
+        }
+
+        function goal(node: WorldNode): boolean {
+            let found: boolean = false;
+
+            for(let i = 0; i < interpretation.length; i++) {
+                let conjuction:any = interpretation[i];
+                for (let j = 0; j < conjuction.length; j++) {
+                    let literal:any = conjuction[j];
+
+                    switch (literal.relation){
+                        case "holding":
+                            return literal.args[0] === node.holding;
+                        default:
+                            let stack: Stack = node.stacks[node.arm];
+                            let row: number = null;
+
+                            stack.forEach((object, iterator) => {
+                                if(object === literal.args[0]) row = iterator;
+                            });
+
+                            if(row){
+                                switch (literal.relation) {
+                                    case "inside":
+                                    case "ontop":
+                                        console.log("ONTOPOPOPPOP");
+                                        console.log("Row", row);
+                                        console.log("Under", stack[row - 1] );
+                                        if((row === 0 && literal.args[1] === "floor") || stack[row - 1] === literal.args[1]){
+                                            console.log("On top goal was found");
+                                            found = true;
+                                        }
+                                        break;
+                                    case "under":
+                                        break;
+                                    case "above":
+                                        break;
+                                    case "beside":
+                                        break;
+                                }
+                            }
+
+                            break;
+                    }
+                }
+            }
+
+
+            return found;
+        }
+
+        let actions = aStarSearch(graph, startNode, goal, () =>  {return 0;}, 10);
+
+        console.log("ACTIONS", actions);
+
+        actions.actions.forEach((action) => {
+            plan.push(action);
+        });
+
+        /*
         // First move the arm to the leftmost nonempty stack
         if (pickstack < state.arm) {
             plan.push("Moving left");
@@ -116,7 +192,7 @@ module Planner {
         // Finally put it down again
         plan.push("Dropping the " + state.objects[obj].form,
                   "d");
-
+        */
         return plan;
     }
 

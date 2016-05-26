@@ -141,13 +141,11 @@ var allTestCases : TestCase[] = [
         utterance: "put a ball on the red floor",
         interpretations: []
     },
-    /*
     {
         world: "small",
-        utterance: "put it on the floor",
-        interpretations: []
+        utterance: "drop it on the floor",
+        interpretations: [["ontop(a,floor)"]]
     },
-    */
 ];
 
 

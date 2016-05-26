@@ -41,10 +41,10 @@ module PhysicalLaws {
      * @param polarity inverts the nature of the relation
      * @returns {boolean} if it follows the physical laws or not
      */
-    export function passLaws(obj: Parser.Object, locObj: Parser.Object, polarity: boolean): boolean {
+    export function passLaws(obj: ObjectDefinition, locObj: ObjectDefinition, polarity: boolean): boolean {
         // Balls cannot support anything.
         if (!polarity) {
-            let temp: Parser.Object = obj;
+            let temp: ObjectDefinition = obj;
             obj = locObj;
             locObj = temp;
         }

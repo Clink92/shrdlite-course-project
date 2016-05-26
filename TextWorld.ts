@@ -5,7 +5,7 @@ class TextWorld implements World {
 
     constructor(public currentState : WorldState) {
         if (!this.currentState.arm) this.currentState.arm = 0;
-        if (this.currentState.holding) this.currentState.holding = null;
+        // if (this.currentState.holding) this.currentState.holding = null;
     }
 
     public readUserInput(prompt : string, callback : (input:string) => void) : void {
