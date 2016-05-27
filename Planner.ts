@@ -3,6 +3,7 @@
 ///<reference path="Graph.ts"/>
 ///<reference path="WorldGraph.ts"/>
 
+
 /** 
 * Planner module
 *
@@ -203,7 +204,11 @@ module Planner {
             return found;
         }
 
-        let actions = aStarSearch(graph, startNode, goal, () =>  {return 0;}, 10);
+        function heuristic(node: WorldNode): number {
+            return Math.abs(node.arm - getStackDiff(state, interpretation));
+        }
+
+        let actions = aStarSearch(graph, startNode, goal, heuristic, 100);
 
         console.log("ACTIONS", actions);
 
@@ -251,4 +256,24 @@ module Planner {
         return plan;
     }
 
+}
+
+function getStackDiff(state: WorldState, interpretation: Interpreter.DNFFormula): number {
+    let diff: number = -1;
+    for(let i = 0; i < interpretation.length; i++) {
+        let conjuction: any = interpretation[i];
+        for (let j = 0; j < conjuction.length; j++) {
+            let literal: any = conjuction[j];
+
+            for(let k: number = 0; k < state.stacks.length; k++) {
+                for(let l: number = 0; l < state.stacks[k].length; l++) {
+                    if(state.stacks[k][l] === literal.args[1]) {
+                        diff = k;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    return diff;
 }
