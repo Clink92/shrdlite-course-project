@@ -103,7 +103,7 @@ module Planner {
             let found: boolean = false;
 
             for(let i = 0; i < interpretation.length; i++) {
-                let conjuction:any = interpretation[i];
+                let conjuction: any = interpretation[i];
                 for (let j = 0; j < conjuction.length; j++) {
                     let literal:any = conjuction[j];
 
@@ -118,15 +118,11 @@ module Planner {
                                 if(object === literal.args[0]) row = iterator;
                             });
 
-                            if(row){
+                            if(row !== undefined){
                                 switch (literal.relation) {
                                     case "inside":
                                     case "ontop":
-                                        console.log("ONTOPOPOPPOP");
-                                        console.log("Row", row);
-                                        console.log("Under", stack[row - 1] );
                                         if((row === 0 && literal.args[1] === "floor") || stack[row - 1] === literal.args[1]){
-                                            console.log("On top goal was found");
                                             found = true;
                                         }
                                         break;

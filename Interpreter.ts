@@ -135,10 +135,14 @@ module Interpreter {
                 });
             }
             else {
+                console.log("Loc entity")
                 var locationObjects: string[] = findObjects(location.entity, state, true);
 
+                console.log("OBJECT", objects);
+                console.log("LOCATION", locationObjects);
                 objects.forEach((obj): void => {
                     locationObjects.forEach((locObj): void => {
+                        console.log(obj);
                         // Push the interpretation if it passes the physical laws
                         if (state.objects[obj] !== state.objects[locObj]
                             && verticalRelationAllowed(state.objects[obj], state.objects[locObj], location.relation, locObj === FORM.floor)) {
@@ -257,7 +261,7 @@ module Interpreter {
      * @returns {boolean} depending on if the state object is a match with the parsed object
      */
     function isObjectMatch(obj: Parser.Object, state: WorldState, col: number, row: number): boolean {
-        let stateObject: ObjectDefinition = (row == -1) ? {form: FORM.floor, size: null, color: null}:state.objects[state.stacks[col][row]];
+        let stateObject: ObjectDefinition = (row === -1) ? {form: FORM.floor, size: null, color: null}:state.objects[state.stacks[col][row]];
 
         // If we have a location we make recursive calls until we find an object
         // without one and check it against a state object
@@ -378,13 +382,16 @@ module Interpreter {
                 break;
         }
 
+        console.log("matched object", matchedObject);
         // We go through each object that fits the spatial relation
         // if it is a match we follow the location if we have one
         // else we return true since we found a match
         for(let i = 0; i < matchedObject.length; i++) {
             let mObj: MatchObject = matchedObject[i];
             if(mObj.matched){
+                console.log(mObj);
                 if(location.entity.object.location){
+                    console.log("I AM HERE ");
                     return isLocationMatch(location.entity.object.location, state, mObj.col, mObj.row);
                 }
                 return true;

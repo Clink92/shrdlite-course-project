@@ -6,7 +6,7 @@ interface TestCase {
 }
 
 var allTestCases : TestCase[] = [
-    
+    /*
     {world: "small",
      utterance: "take an object",
      interpretations: [["holding(e)", "holding(f)", "holding(g)", "holding(k)", "holding(l)", "holding(m)"]]
@@ -145,6 +145,11 @@ var allTestCases : TestCase[] = [
         world: "small",
         utterance: "drop it on the floor",
         interpretations: [["ontop(a,floor)"]]
+    },*/
+    {
+        world: "small",
+        utterance: "put the black ball inside the blue box inside the red box",
+        interpretations: [["inside(f,m)"]]
     },
 ];
 
