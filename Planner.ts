@@ -102,35 +102,94 @@ module Planner {
         function goal(node: WorldNode): boolean {
             let found: boolean = false;
 
-            for(let i = 0; i < interpretation.length; i++) {
-                let conjuction: any = interpretation[i];
-                for (let j = 0; j < conjuction.length; j++) {
-                    let literal:any = conjuction[j];
+            let conjuction: any;
+            let literal: any;
+            let stack: Stack;
+            let row: number;
 
-                    switch (literal.relation){
-                        case "holding":
+            for(let i = 0; i < interpretation.length; i++) {
+                conjuction = interpretation[i];
+                for (let j = 0; j < conjuction.length; j++) {
+                    literal = conjuction[j];
+                    switch (literal.relation) {
+                        case RELATION.holding:
                             return literal.args[0] === node.holding;
                         default:
-                            let stack: Stack = node.stacks[node.arm];
-                            let row: number = null;
-
+                            stack = node.stacks[node.arm];
+                            row = null;
                             stack.forEach((object, iterator) => {
                                 if(object === literal.args[0]) row = iterator;
                             });
 
-                            if(row !== undefined){
+                            if(row !== null){
                                 switch (literal.relation) {
-                                    case "inside":
-                                    case "ontop":
-                                        if((row === 0 && literal.args[1] === "floor") || stack[row - 1] === literal.args[1]){
+                                    case RELATION.inside:
+                                    case RELATION.ontop:
+                                        if ((row === 0 && literal.args[1] === FORM.floor) || stack[row - 1] === literal.args[1]) {
                                             found = true;
                                         }
                                         break;
-                                    case "under":
+
+                                    case RELATION.under:
+                                        for (let i: number = row + 1; i < stack.length; i++) {
+                                            if (stack[i] === literal.args[1]) {
+                                                found = true;
+                                                break;
+                                            }
+                                        }
                                         break;
-                                    case "above":
+                                    
+                                    // SOmething stupid with big boxes and planks
+                                    case RELATION.above:
+                                        for (let i: number = row - 1; i >= 0; i--) {
+                                            if (stack[i] === literal.args[1]) {
+                                                found = true;
+                                                break;
+                                            }
+                                        }
                                         break;
-                                    case "beside":
+
+                                    case RELATION.beside:
+                                        let col: number;
+                                        if (node.arm > 0) {
+                                            col = node.arm - 1;
+                                            for (let i: number = 0; i < node.stacks[col].length; i++) {
+                                                if (node.stacks[col][i] === literal.args[1]) {
+                                                    found = true;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        if (node.arm < node.stacks.length) {
+                                            col = node.arm + 1;
+                                            for (let i: number = 0; i < node.stacks[col].length; i++) {
+                                                if (node.stacks[col][i] === literal.args[1]) {
+                                                    found = true;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        break;
+
+                                    case RELATION.leftof:
+                                        for (let col: number = node.arm + 1; col < node.stacks.length; col++) {
+                                            for (let i: number = 0; i < node.stacks[col].length; i++) {
+                                                if (node.stacks[col][i] === literal.args[1]) {
+                                                    found = true;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        break;
+                                    case RELATION.rightof:
+                                        for (let col: number = node.arm - 1; col >= 0; col--) {
+                                            for (let i: number = 0; i < node.stacks[col].length; i++) {
+                                                if (node.stacks[col][i] === literal.args[1]) {
+                                                    found = true;
+                                                    break;
+                                                }
+                                            }
+                                        }
                                         break;
                                 }
                             }
