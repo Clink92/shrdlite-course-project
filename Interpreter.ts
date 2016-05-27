@@ -213,7 +213,7 @@ module Interpreter {
      * @returns {string[]} with the objects inside the world state that match the entity
      */
     function findObjects(entity: Parser.Entity, state: WorldState, isLocation: boolean): string[] {
-        var obj: Parser.Object = entity.object;
+        var obj: ObjectDefinition = <ObjectDefinition>entity.object;
         var objects: string[] = [];
 
         // If we search for the floor as a location we add it.
@@ -226,6 +226,13 @@ module Interpreter {
             return null;
         }
 
+        if (state.holding !== null) {
+            var holdObj: ObjectDefinition = state.objects[state.holding];
+            if (objectCompare(obj, holdObj)) {
+                objects.push(state.holding);
+            }
+        }
+
         // we make a search through the world state to find objects that match our description
         for (var col: number = 0; col < state.stacks.length; col++) {
             var stack: Stack = state.stacks[col];
@@ -233,7 +240,7 @@ module Interpreter {
             for (var row: number = 0; row < stack.length; row++) {
                 var item: string = stack[row];
 
-                if (isObjectMatch(obj, state, col, row)) {
+                if (isObjectMatch(entity.object, state, col, row)) {
                     objects.push(item);
                 }
             }
@@ -270,8 +277,8 @@ module Interpreter {
             // therefore we interpret the object as well as follow the location to
             // make sure the both are a match
             return isObjectMatch(obj.object, state, col, row) && isLocationMatch(obj.location, state, col, row);
-        } else{
-            return objectCompare(obj, stateObject);
+        } else {
+            return objectCompare(<ObjectDefinition>obj, stateObject);
         }
     }
 
@@ -283,7 +290,7 @@ module Interpreter {
      * @param stateObject Second object
      * @returns {boolean} True if the objects are the same
      */
-    function objectCompare(obj1: Parser.Object, stateObject: Parser.Object) : boolean {
+    function objectCompare(obj1: ObjectDefinition, stateObject: ObjectDefinition): boolean {
         return (obj1.color == stateObject.color  || obj1.color == null)
             && (obj1.size == stateObject.size    || obj1.size == null)
             && (obj1.form == stateObject.form    || obj1.form == FORM.anyform && stateObject.form != FORM.floor);

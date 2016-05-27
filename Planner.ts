@@ -85,7 +85,7 @@ module Planner {
 
         let stacks: Stack[] = [];
 
-        // WE DONT LIKE ThEM NULLS, KÄFTEN ANDREAS!!!!
+        // For some reason there are null objects in the stacks. Filter them out.
         state.stacks.forEach((stack) => {
             stacks.push(stack.filter((object) => {return object !== undefined; }));
         });
