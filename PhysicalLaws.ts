@@ -19,7 +19,8 @@ module PhysicalLaws {
         under: 'under',
         beside: 'beside',
         leftof: 'leftof',
-        rightof: 'rightof'
+        rightof: 'rightof',
+        holding: 'holding'
     };
 
     export const FORM = {
@@ -75,7 +76,7 @@ module PhysicalLaws {
                     }
 
                     return true;
-
+                    
                 default:
                     return true;
             }
