@@ -42,6 +42,7 @@ ExampleWorlds["complex"] = {
 
 ExampleWorlds["medium"] = {
     "stacks": [["e"],["a","l"],[],[],["i","h","j"],[],[],["k","g","c","b"],[],["d","m","f"]],
+    //"stacks": [["e"],[],[],[],[],[],[],["k"],["c","b"],["d","m","f"]],
     "holding": null,
     "arm": 0,
     "objects": {
