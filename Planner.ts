@@ -204,12 +204,28 @@ module Planner {
             return Math.abs(node.arm - getStackDiff(state, interpretation));
         }
 
-        let actions = aStarSearch(graph, startNode, goal, heuristic, 100);
-
-        actions.actions.forEach((action) => {
-            plan.push(action);
-        });
+        let result = aStarSearch(graph, startNode, goal, heuristic, 100);
         
+        return getPlan(result.actions);
+    }
+
+    const msg: {[action: string]: string} = {
+        l: 'Moving left',
+        r: 'Moving right',
+        p: 'Picking up object',
+        d: 'Dropping object'
+    };
+
+    function getPlan(actions: string[]): string[] {
+        let previous: string;
+        let plan: string[] = [];
+
+        actions.forEach((action) => {
+            if(previous !== action) plan.push(msg[action]);
+            plan.push(action);
+            previous = action;
+        });
+
         return plan;
     }
 }
