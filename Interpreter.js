@@ -1,6 +1,11 @@
 ///<reference path="World.ts"/>
 ///<reference path="Parser.ts"/>
 ///<reference path="lib/node.d.ts"/>
+///<reference path="PhysicalLaws.ts"/>
+var passLaws = PhysicalLaws.passLaws;
+var SIZE = PhysicalLaws.SIZE;
+var RELATION = PhysicalLaws.RELATION;
+var FORM = PhysicalLaws.FORM;
 //var bunyan = require('bunyan');
 /**
  * Interpreter module
@@ -63,31 +68,6 @@ var Interpreter;
         return (lit.polarity ? "" : "-") + lit.relation + "(" + lit.args.join(",") + ")";
     }
     Interpreter.stringifyLiteral = stringifyLiteral;
-    var SIZE;
-    (function (SIZE) {
-        SIZE[SIZE["small"] = 0] = "small";
-        SIZE[SIZE["large"] = 1] = "large";
-        SIZE[SIZE["undefined"] = 2] = "undefined";
-    })(SIZE || (SIZE = {}));
-    var RELATION = {
-        ontop: 'ontop',
-        inside: 'inside',
-        above: 'above',
-        under: 'under',
-        beside: 'beside',
-        leftof: 'leftof',
-        rightof: 'rightof'
-    };
-    var FORM = {
-        brick: 'brick',
-        plank: 'plank',
-        ball: 'ball',
-        pyramid: 'pyramid',
-        box: 'box',
-        table: 'table',
-        floor: 'floor',
-        anyform: 'anyform',
-    };
     //////////////////////////////////////////////////////////////////////
     // private functions
     /**
@@ -104,24 +84,36 @@ var Interpreter;
     function interpretCommand(cmd, state) {
         var interpretation = [];
         var location = cmd.location;
-        var objects = findObjects(cmd.entity, state, false);
-        // if there is no location we go through all the objects and assume we just pick them up
-        if (!location && !state.holding) {
-            objects.forEach(function (obj) {
-                // The arm can only hold one object at the time.
-                interpretation.push(getGoal(true, "holding", [obj]));
-            });
-        }
-        else {
-            var locationObjects = findObjects(location.entity, state, true);
-            objects.forEach(function (obj) {
-                locationObjects.forEach(function (locObj) {
-                    // Push the interpretation if it passes the physical laws
-                    if (state.objects[obj] !== state.objects[locObj]
-                        && verticalRelationAllowed(state.objects[obj], state.objects[locObj], location.relation, locObj === FORM.floor)) {
-                        interpretation.push(getGoal(true, location.relation, [obj, locObj]));
-                    }
+        if (cmd.command !== "put") {
+            var objects = findObjects(cmd.entity, state, false);
+            // if there is no location we go through all the objects and assume we just pick them up
+            if (!location) {
+                objects.forEach(function (obj) {
+                    // The arm can only hold one object at the time.
+                    interpretation.push(getGoal(true, "holding", [obj]));
                 });
+            }
+            else {
+                var locationObjects = findObjects(location.entity, state, true);
+                objects.forEach(function (obj) {
+                    locationObjects.forEach(function (locObj) {
+                        // Push the interpretation if it passes the physical laws
+                        if (state.objects[obj] !== state.objects[locObj]
+                            && verticalRelationAllowed(state.objects[obj], state.objects[locObj], location.relation, locObj === FORM.floor)) {
+                            interpretation.push(getGoal(true, location.relation, [obj, locObj]));
+                        }
+                    });
+                });
+            }
+        }
+        else if (cmd.command === "put") {
+            var locationObjects = findObjects(location.entity, state, true);
+            locationObjects.forEach(function (locObj) {
+                // Push the interpretation if it passes the physical laws
+                if (state.objects[state.holding] !== state.objects[locObj]
+                    && verticalRelationAllowed(state.objects[state.holding], state.objects[locObj], location.relation, locObj === FORM.floor)) {
+                    interpretation.push(getGoal(true, location.relation, [state.holding, locObj]));
+                }
             });
         }
         return (interpretation.length !== 0) ? interpretation : null;
@@ -132,7 +124,9 @@ var Interpreter;
      *
      * @param obj The object
      * @param locObj The location object
-     * @param relation The relation between the objects
+     * @param relation The rela
+     *
+     * tion between the objects
      * @param isLocFloor If the location is the floor
      * @returns True if the vertical relation is allowed.
      */
@@ -146,10 +140,10 @@ var Interpreter;
             switch (relation) {
                 case RELATION.inside:
                 case RELATION.ontop:
-                    allowed = checkPhysicalLaws(obj, locObj, true);
+                    allowed = passLaws(obj, locObj, true);
                     break;
                 case RELATION.under:
-                    allowed = checkPhysicalLaws(obj, locObj, false);
+                    allowed = passLaws(obj, locObj, false);
                     break;
                 default:
                     break;
@@ -180,12 +174,18 @@ var Interpreter;
             // Can't pick up floor
             return null;
         }
+        if (state.holding !== null) {
+            var holdObj = state.objects[state.holding];
+            if (objectCompare(obj, holdObj)) {
+                objects.push(state.holding);
+            }
+        }
         // we make a search through the world state to find objects that match our description
         for (var col = 0; col < state.stacks.length; col++) {
             var stack = state.stacks[col];
             for (var row = 0; row < stack.length; row++) {
                 var item = stack[row];
-                if (isObjectMatch(obj, state, col, row)) {
+                if (isObjectMatch(entity.object, state, col, row)) {
                     objects.push(item);
                 }
             }
@@ -204,7 +204,7 @@ var Interpreter;
      * @returns {boolean} depending on if the state object is a match with the parsed object
      */
     function isObjectMatch(obj, state, col, row) {
-        var stateObject = (row == -1) ? { form: FORM.floor, size: null, color: null } : state.objects[state.stacks[col][row]];
+        var stateObject = (row === -1) ? { form: FORM.floor, size: null, color: null } : state.objects[state.stacks[col][row]];
         // If we have a location we make recursive calls until we find an object
         // without one and check it against a state object
         if (obj.location) {
@@ -225,10 +225,10 @@ var Interpreter;
      * @param stateObject Second object
      * @returns {boolean} True if the objects are the same
      */
-    function objectCompare(obj1, stateObject) {
-        return (obj1.color == stateObject.color || obj1.color == null)
-            && (obj1.size == stateObject.size || obj1.size == null)
-            && (obj1.form == stateObject.form || obj1.form == FORM.anyform && stateObject.form != FORM.floor);
+    function objectCompare(obj, stateObject) {
+        return (obj.color == stateObject.color || obj.color == null)
+            && (obj.size == stateObject.size || obj.size == null)
+            && (obj.form == stateObject.form || obj.form == FORM.anyform && stateObject.form != FORM.floor);
     }
     /**
      *
@@ -298,6 +298,7 @@ var Interpreter;
                 break;
             case RELATION.under:
                 // x is under y if it is somewhere below.
+                console.log("UNDER");
                 if (row < (state.stacks[col].length - 1)) {
                     var dRow_5 = row + 1;
                     matchedObject.push(getMatchedObject(location.entity.object, state, col, dRow_5));
@@ -327,52 +328,6 @@ var Interpreter;
         return false;
     }
     /**
-     *
-     * Makes a check for the physical laws
-     *
-     * @param obj that we want compare with locObj to make sure that they follow the physical laws
-     * @param locObj same as for obj
-     * @param polarity inverts the nature of the relation
-     * @returns {boolean} if it follows the physical laws or not
-     */
-    function checkPhysicalLaws(obj, locObj, polarity) {
-        // Balls cannot support anything.
-        if (!polarity) {
-            var temp = obj;
-            obj = locObj;
-            locObj = temp;
-        }
-        if (locObj.form === FORM.ball) {
-            return false;
-        }
-        //Small objects cannot support large objects.
-        if (lte(obj.size, locObj.size)) {
-            switch (obj.form) {
-                case FORM.ball:
-                    return locObj.form === FORM.box || locObj.form === FORM.floor;
-                case FORM.box:
-                    if (equalSize(obj.size, locObj.size)) {
-                        // Boxes cannot contain pyramids, planks or boxes of the same size.
-                        return !(locObj.form === FORM.pyramid ||
-                            locObj.form === FORM.plank ||
-                            locObj.form === FORM.box);
-                    }
-                    else if (getSize(obj.size) === SIZE.small) {
-                        // Small boxes cannot be supported by small bricks or pyramids.
-                        return !(locObj.form === FORM.brick || locObj.form === FORM.pyramid);
-                    }
-                    else if (getSize(obj.size) == SIZE.large) {
-                        // Large boxes cannot be supported by large pyramids.
-                        return !(locObj.form === FORM.pyramid);
-                    }
-                    return true;
-                default:
-                    return true;
-            }
-        }
-        return false;
-    }
-    /**
      * Returns a goal for the DNF
      *
      * @param pol polarity
@@ -388,42 +343,6 @@ var Interpreter;
                 args: args
             }
         ];
-    }
-    /**
-     *  Get the enum size according to the string that is passed into the function
-     *
-     * @param size string
-     * @returns {SIZE} enum that is related to the the string
-     */
-    function getSize(size) {
-        switch (size) {
-            case "small":
-                return SIZE.small;
-            case "large":
-                return SIZE.large;
-            default:
-                return SIZE.undefined;
-        }
-    }
-    /**
-     * Simply a less than or equal for the Parse.Object
-     *
-     * @param size1
-     * @param size2
-     * @returns {boolean}
-     */
-    function lte(size1, size2) {
-        return getSize(size1) <= getSize(size2);
-    }
-    /**
-     * A check for equality
-     *
-     * @param size1
-     * @param size2
-     * @returns {boolean}
-     */
-    function equalSize(size1, size2) {
-        return getSize(size1) == getSize(size2);
     }
     /**
      *

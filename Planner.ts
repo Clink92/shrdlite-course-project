@@ -114,16 +114,12 @@ module Planner {
                         case RELATION.holding:
                             return literal.args[0] === node.holding;
                         default:
-                            let stackPos: number;
                             // Find the stack the object is in
                             for (let i: number = 0; i < node.stacks.length; i++) {
-                                if (existInStack(stack, literal.args[0])) {
-                                    stackPos = i;
+                                stack = node.stacks[i];
+                                if (existInStack(stack, literal.args[0]))
                                     break;
-                                }
                             }
-                            stack = node.stacks[stackPos];
-                            //stack = node.stacks[node.arm];
 
                             row = null;
                             stack.forEach((object, iterator) => {
@@ -158,23 +154,22 @@ module Planner {
                                         break;
 
                                     case RELATION.beside:
+                                        console.log("I AM HERE");
                                         let col: number;
                                         // Look in the left stack.
-                                        if (stackPos > 0) {
-                                            col = stackPos - 1;
-                                            if (node.stacks[col] != null)
+                                        if (node.arm > 1) {
+                                            col = node.arm - 1;
                                             found = existInStack(node.stacks[col], literal.args[1]);
                                         }
                                         // Look in the right stack if it wasn't found in the left stack.
-                                        if (!found && stackPos < node.stacks.length - 1) {
-                                            col = stackPos + 1;
-                                            if (node.stacks[col] != null)
+                                        if (!found && node.arm < node.stacks.length - 1) {
+                                            col = node.arm + 1;
                                             found = existInStack(node.stacks[col], literal.args[1]);
                                         }
                                         break;
-                                        
+
                                     case RELATION.leftof:
-                                        for (let col: number = stackPos + 1; col < node.stacks.length; col++) {
+                                        for (let col: number = node.arm + 1; col < node.stacks.length; col++) {
                                             if (existInStack(node.stacks[col], literal.args[1])) {
                                                 found = true;
                                                 break;
@@ -183,7 +178,7 @@ module Planner {
                                         break;
 
                                     case RELATION.rightof:
-                                        for (let col: number = stackPos - 1; col >= 0; col--) {
+                                        for (let col: number = node.arm - 1; col >= 0; col--) {
                                             if (existInStack(node.stacks[col], literal.args[1])) {
                                                 found = true;
                                                 break;
@@ -203,7 +198,14 @@ module Planner {
         }
 
         function heuristic(node: WorldNode): number {
-            return Math.abs(node.arm - getStackDiff(state, interpretation));
+            let min: number = Number.MAX_VALUE;
+            let columns: number[] = getStackCol(state, interpretation);
+            columns.forEach((col) => {
+                let value: number = Math.abs(node.arm - col);
+                if(value < min) min = value;
+            });
+            return min;
+            //return 0;
         }
 
         let result = aStarSearch(graph, startNode, goal, heuristic, 100);
@@ -232,8 +234,8 @@ module Planner {
     }
 }
 
-function getStackDiff(state: WorldState, interpretation: Interpreter.DNFFormula): number {
-    let diff: number = -1;
+function getStackCol(state: WorldState, interpretation: Interpreter.DNFFormula): number[] {
+    let col: number[] = [];
     for(let i = 0; i < interpretation.length; i++) {
         let conjuction: any = interpretation[i];
         for (let j = 0; j < conjuction.length; j++) {
@@ -242,17 +244,20 @@ function getStackDiff(state: WorldState, interpretation: Interpreter.DNFFormula)
             for(let k: number = 0; k < state.stacks.length; k++) {
                 for(let l: number = 0; l < state.stacks[k].length; l++) {
                     if(state.stacks[k][l] === literal.args[1]) {
-                        diff = k;
-                        break;
+                        col.push(k);
                     }
+                }
+
+                if(literal.args[1] === FORM.floor && state.stacks[k].length === 0) {
+                    col.push(k);
                 }
             }
         }
     }
-    return diff;
+    return col;
 }
 
-function existInStack(stack: string[], obj: any): boolean {
+function existInStack(stack: string[], obj: string): boolean {
     let exist: boolean = false;
     for (let row: number = 0; row < stack.length; row++) {
         if (stack[row] === obj) {

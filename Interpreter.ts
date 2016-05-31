@@ -141,7 +141,7 @@ module Interpreter {
                     locationObjects.forEach((locObj): void => {
                         // Push the interpretation if it passes the physical laws
                         if (state.objects[obj] !== state.objects[locObj]
-                            && verticalRelationAllowed(state.objects[obj], state.objects[locObj], location.relation, locObj === FORM.floor)) {
+                            && verticalRelationAllowed(state.objects[obj], state.objects[locObj], state, location.relation, locObj === FORM.floor)) {
                             interpretation.push(getGoal(true, location.relation, [obj, locObj]));
                         }
                     })
@@ -155,7 +155,7 @@ module Interpreter {
             locationObjects.forEach(function (locObj) {
                 // Push the interpretation if it passes the physical laws
                 if (state.objects[state.holding] !== state.objects[locObj]
-                    && verticalRelationAllowed(state.objects[state.holding], state.objects[locObj], location.relation, locObj === FORM.floor)) {
+                    && verticalRelationAllowed(state.objects[state.holding], state.objects[locObj], state, location.relation, locObj === FORM.floor)) {
                     interpretation.push(getGoal(true, location.relation, [state.holding, locObj]));
                 }
             });
@@ -176,31 +176,57 @@ module Interpreter {
      * @param isLocFloor If the location is the floor
      * @returns True if the vertical relation is allowed.
      */
-    function verticalRelationAllowed(obj: ObjectDefinition, locObj: ObjectDefinition, relation: string, isLocFloor: boolean): boolean {
+    function verticalRelationAllowed(obj: ObjectDefinition, locObj: ObjectDefinition, state: WorldState, relation: string, isLocFloor: boolean): boolean {
         // Assume true since an object with no stack relation can always be placed
         let allowed: boolean = true;
-        
+        let queue: collections.Queue<ObjectDefinition[]> = new collections.Queue<ObjectDefinition[]>();
+        queue.add([locObj]);
+
+        let currentStack: ObjectDefinition[];
         if (!isLocFloor && checkStackRelation(relation)) {
-            // The spatial relation ontop and inside are treated the same way.
-            // Under is handled in the same way except that we change the polarity
-            // of the check.
-            switch (relation) {
-                case RELATION.inside:
-                case RELATION.ontop:
-                    allowed = passLaws(obj, locObj, true);
-                    break;
-                case RELATION.under:
-                    allowed = passLaws(obj, locObj, false);
-                    break;
-                default:
-                    break;
+            while(!queue.isEmpty()){
+                currentStack = queue.dequeue();
+                console.log(obj);
+                allowed = isAllowed(obj, currentStack[currentStack.length - 1], relation);
+                if(allowed) break;
+                else {
+                    for(let col: number = 0; col < state.stacks.length; col++) {
+                        let stack:Stack = state.stacks[col];
+
+                        for (let row:number = 0; row < stack.length; row++) {
+                            let object:string = stack[row];
+                            if (currentStack.indexOf(state.objects[object]) === -1 && isAllowed(state.objects[object], currentStack[currentStack.length - 1], relation)){
+                                currentStack.push(state.objects[object]);
+                                queue.enqueue(currentStack);
+                            }
+                        }
+
+                    }
+
+                }
             }
         }
         else if (isLocFloor) {
             // If the location is the floor, the object must be either on top or above.
             allowed = (relation === RELATION.ontop || relation === RELATION.above);
         }
+
         return allowed;
+    }
+
+    function isAllowed(obj: ObjectDefinition, locObj: ObjectDefinition, relation: string): boolean{
+        // The spatial relation ontop and inside are treated the same way.
+        // Under is handled in the same way except that we change the polarity
+        // of the check.
+        switch (relation) {
+            case RELATION.inside:
+            case RELATION.ontop:
+                return passLaws(obj, locObj, true);
+            case RELATION.under:
+                return passLaws(obj, locObj, false);
+            default:
+                return true;
+        }
     }
 
     /**
@@ -370,7 +396,6 @@ module Interpreter {
 
             case RELATION.under:
                 // x is under y if it is somewhere below.
-                console.log("UNDER");
                 if(row < (state.stacks[col].length - 1)){
                     let dRow = row + 1;
                     matchedObject.push(getMatchedObject(location.entity.object, state, col, dRow));
