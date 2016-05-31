@@ -4,7 +4,8 @@
 ///<reference path="WorldGraph.ts"/>
 
 
-/** 
+import Literal = Interpreter.Literal;
+/**
 * Planner module
 *
 * The goal of the Planner module is to take the interpetation(s)
@@ -190,7 +191,6 @@ module Planner {
                                         break;
                                 }
                             }
-
                             break;
                     }
                 }
@@ -201,14 +201,49 @@ module Planner {
         }
 
         function heuristic(node: WorldNode): number {
-            let min: number = Number.MAX_VALUE;
-            let columns: number[] = getStackCol(state, interpretation);
-            columns.forEach((col) => {
-                let value: number = Math.abs(node.arm - col);
-                if(value < min) min = value;
-            });
-            //return min;
-            return 0;
+
+            let min:number = Number.MAX_VALUE;
+
+            for(let i = 0; i < interpretation.length; i++) {
+                let conjuction:any = interpretation[i];
+                for (let j = 0; j < conjuction.length; j++) {
+
+                    let literal:any = conjuction[j];
+                    let columns:number[] = getStackColumns(state, literal);
+
+                    columns.forEach((col) => {
+                            let value: number = Math.abs(node.arm - col);
+
+                            switch (literal.relation) {
+                                case RELATION.beside:
+                                    value = Math.abs(value - 1);
+                                    break;
+                                case RELATION.leftof:
+                                    if(node.arm > col){
+                                       value += 1;
+                                    }
+                                    else if(node.arm < col){
+                                        value -= 1;
+                                    }
+                                    break;
+
+                                case RELATION.rightof:
+                                    if(node.arm > col){
+                                        value -= 1;
+                                    }
+                                    else if(node.arm < col){
+                                        value += 1;
+                                    }
+                                    break;
+                            }
+
+                            if(value < min) min = value;
+
+                    });
+                }
+            }
+            return min;
+            //return 0;
         }
 
         let result = aStarSearch(graph, startNode, goal, heuristic, 100);
@@ -223,6 +258,12 @@ module Planner {
         d: 'Dropping object'
     };
 
+    /**
+     * Generates the plan according to the actions
+     *
+     * @param actions that needs to be done
+     * @returns a plan of actions and messages
+     */
     function getPlan(actions: string[]): string[] {
         let previous: string;
         let plan: string[] = [];
@@ -237,24 +278,23 @@ module Planner {
     }
 }
 
-function getStackCol(state: WorldState, interpretation: Interpreter.DNFFormula): number[] {
+/**
+ *
+ *
+ * @param state
+ * @param literal
+ * @returns {number[]}
+ */
+function getStackColumns(state: WorldState, literal: any): number[] {
     let col: number[] = [];
-    for(let i = 0; i < interpretation.length; i++) {
-        let conjuction: any = interpretation[i];
-        for (let j = 0; j < conjuction.length; j++) {
-            let literal: any = conjuction[j];
-
-            for(let k: number = 0; k < state.stacks.length; k++) {
-                for(let l: number = 0; l < state.stacks[k].length; l++) {
-                    if(state.stacks[k][l] === literal.args[1]) {
-                        col.push(k);
-                    }
-                }
-
-                if(literal.args[1] === FORM.floor && state.stacks[k].length === 0) {
-                    col.push(k);
-                }
+    for(let k: number = 0; k < state.stacks.length; k++) {
+        for(let l: number = 0; l < state.stacks[k].length; l++) {
+            if(state.stacks[k][l] === literal.args[1]) {
+                col.push(k);
             }
+        }
+        if(literal.args[1] === FORM.floor && state.stacks[k].length === 0) {
+            col.push(k);
         }
     }
     return col;
