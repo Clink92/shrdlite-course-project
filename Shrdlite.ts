@@ -12,7 +12,6 @@ module Shrdlite {
             if (utterance.trim()) {
                 var plan : string[] = splitStringIntoPlan(utterance);
                 if (!plan) {
-                    console.log(world);
                     plan = parseUtteranceIntoPlan(world, utterance);
                 }
                 if (plan) {
@@ -109,7 +108,6 @@ module Shrdlite {
 
         var finalPlan : string[] = plans[0].plan;
         world.printDebugInfo("Final plan: " + finalPlan.join(", "));
-        console.log(world);
         return finalPlan;
     }
 

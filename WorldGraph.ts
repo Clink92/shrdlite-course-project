@@ -43,13 +43,12 @@ class WorldGraph implements Graph<WorldNode> {
     outgoingEdges(node:WorldNode):Edge<WorldNode>[] {
         let outgoing: Edge<WorldNode>[] = [];
 
-        console.log("Getting new outgoing edges from:", node);
+        //console.log("Getting new outgoing edges from:", node);
         if(!node.holding){
-            console.log("Outgoing: Pickup");
+            //console.log("Outgoing: Pickup");
             outgoing.push(getOutgoing(node, pickup, "p"));
         }
         if(node.holding){
-            console.log("Outgoing: Drop");
             let stack: Stack = node.stacks[node.arm];
 
             // if the stack is empty we can drop, else we have to check the physical laws
@@ -65,11 +64,11 @@ class WorldGraph implements Graph<WorldNode> {
 
         } 
         if(node.arm > 0) {
-            console.log("Outgoing: Left");
+            //console.log("Outgoing: Left");
             outgoing.push(getOutgoing(node, goLeft, "l"));
         }
         if(node.arm < node.stacks.length - 1){
-            console.log("Outgoing: Right");
+            //console.log("Outgoing: Right");
             outgoing.push(getOutgoing(node, goRight, "r"));
         }
 

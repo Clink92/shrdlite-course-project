@@ -109,23 +109,19 @@ function aStarSearch<Node> (
 
     while(!openList.isEmpty() && (deltaTime * 0.001) < timeout)
     {
-        console.log("TOP OF WHILE");
         var current : Node = openList.dequeue();
         let currentKey: string = JSON.stringify(current);
-        console.log("Current node: ", current);
 
         frontier.remove(currentKey);
         explored.setValue(currentKey, current);
 
         if(goal(current))
 		{
-            console.log("FOUND GOAL");
             // Goal found, reconstruct the path
             let node: Node = current;
             let key: string = JSON.stringify(node);
             let cf: {node: Node, action: string};
 
-            console.log("Reconstructing path");
             while(cameFrom.containsKey(key))
 			{
                 cf = cameFrom.getValue(key);
@@ -143,12 +139,10 @@ function aStarSearch<Node> (
 
 		// This holds a node's children
         var edges : Edge<Node>[] = graph.outgoingEdges(current);
-        console.log("EDGES", edges);
 
 		// Iterate through the node's children
         for(var i : number = 0; i < edges.length; i++)
 		{
-            console.log("checking outgoing edges");
             var child : Node = edges[i].to;
             let childKey: string = JSON.stringify(child);
 
@@ -160,17 +154,15 @@ function aStarSearch<Node> (
             }
 
             var tempGScore : number = edges[i].cost + gScore.getValue(currentKey);
-            console.log("GSCORE", tempGScore);
             var tempFScore : number = tempGScore + heuristics(child);
 
             if(!frontier.containsKey(childKey)){
-                console.log("ADDING CHILD");
                 frontier.setValue(childKey, child);
 
-				// NOTE: We have to add the f score to the node before we queue it in the open list
-				// to make sure that it is sorted correctly
-                fScore.setValue(childKey, tempFScore);
                 openList.enqueue(child);
+                // NOTE: We have to add the f score to the node before we queue it in the open list
+                // to make sure that it is sorted correctly
+                fScore.setValue(childKey, tempFScore);
             }
             else if (tempGScore >= gScore.getValue(childKey))
 			{

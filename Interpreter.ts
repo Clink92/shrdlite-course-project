@@ -135,14 +135,10 @@ module Interpreter {
                 });
             }
             else {
-                console.log("Loc entity")
                 var locationObjects: string[] = findObjects(location.entity, state, true);
 
-                console.log("OBJECT", objects);
-                console.log("LOCATION", locationObjects);
                 objects.forEach((obj): void => {
                     locationObjects.forEach((locObj): void => {
-                        console.log(obj);
                         // Push the interpretation if it passes the physical laws
                         if (state.objects[obj] !== state.objects[locObj]
                             && verticalRelationAllowed(state.objects[obj], state.objects[locObj], location.relation, locObj === FORM.floor)) {
@@ -365,6 +361,7 @@ module Interpreter {
 
             case RELATION.under:
                 // x is under y if it is somewhere below.
+                console.log("UNDER");
                 if(row < (state.stacks[col].length - 1)){
                     let dRow = row + 1;
                     matchedObject.push(getMatchedObject(location.entity.object, state, col, dRow));
@@ -382,16 +379,13 @@ module Interpreter {
                 break;
         }
 
-        console.log("matched object", matchedObject);
         // We go through each object that fits the spatial relation
         // if it is a match we follow the location if we have one
         // else we return true since we found a match
         for(let i = 0; i < matchedObject.length; i++) {
             let mObj: MatchObject = matchedObject[i];
             if(mObj.matched){
-                console.log(mObj);
                 if(location.entity.object.location){
-                    console.log("I AM HERE ");
                     return isLocationMatch(location.entity.object.location, state, mObj.col, mObj.row);
                 }
                 return true;

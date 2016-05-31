@@ -85,12 +85,10 @@ module Planner {
 
         let stacks: Stack[] = [];
 
-        // WE DONT LIKE ThEM NULLS, KÄFTEN ANDREAS!!!!
+        // somehow we got nulls inside the first stack, here we basically make sure that they are filtered out
         state.stacks.forEach((stack) => {
             stacks.push(stack.filter((object) => {return object !== undefined; }));
         });
-
-        console.log("stacks", stacks);
 
         let startNode = new WorldNode(stacks, state.holding, state.arm);
 
@@ -146,50 +144,10 @@ module Planner {
 
         let actions = aStarSearch(graph, startNode, goal, () =>  {return 0;}, 10);
 
-        console.log("ACTIONS", actions);
-
         actions.actions.forEach((action) => {
             plan.push(action);
         });
-
-        /*
-        // First move the arm to the leftmost nonempty stack
-        if (pickstack < state.arm) {
-            plan.push("Moving left");
-            for (var i = state.arm; i > pickstack; i--) {
-                plan.push("l");
-            }
-        } else if (pickstack > state.arm) {
-            plan.push("Moving right");
-            for (var i = state.arm; i < pickstack; i++) {
-                plan.push("r");
-            }
-        }
-
-        // Then pick up the object
-        var obj = state.stacks[pickstack][state.stacks[pickstack].length-1];
-        plan.push("Picking up the " + state.objects[obj].form,
-                  "p");
-
-        if (pickstack < state.stacks.length-1) {
-            // Then move to the rightmost stack
-            plan.push("Moving as far right as possible");
-            for (var i = pickstack; i < state.stacks.length-1; i++) {
-                plan.push("r");
-            }
-
-            // Then move back
-            plan.push("Moving back");
-            for (var i = state.stacks.length-1; i > pickstack; i--) {
-                plan.push("l");
-            }
-        }
-
-        // Finally put it down again
-        plan.push("Dropping the " + state.objects[obj].form,
-                  "d");
-        */
+        
         return plan;
     }
-
 }
