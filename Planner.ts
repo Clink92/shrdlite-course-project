@@ -29,6 +29,8 @@ module Planner {
     export function plan(interpretations : Interpreter.InterpretationResult[], currentState : WorldState) : PlannerResult[] {
         var errors : Error[] = [];
         var plans : PlannerResult[] = [];
+
+        console.log("PLAN", interpretations);
         interpretations.forEach((interpretation) => {
             try {
                 var result : PlannerResult = <PlannerResult>interpretation;
@@ -80,6 +82,7 @@ module Planner {
      */
     function planInterpretation(interpretation : Interpreter.DNFFormula, state : WorldState) : string[] {
 
+        console.log("INTERPRETATION", interpretation);
         var plan : string[] = [];
 
 
