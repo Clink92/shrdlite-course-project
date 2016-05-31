@@ -114,12 +114,16 @@ module Planner {
                         case RELATION.holding:
                             return literal.args[0] === node.holding;
                         default:
+                            let stackPos: number;
                             // Find the stack the object is in
                             for (let i: number = 0; i < node.stacks.length; i++) {
-                                stack = node.stacks[i];
-                                if (existInStack(stack, literal.args[0]))
+                                if (existInStack(stack, literal.args[0])) {
+                                    stackPos = i;
                                     break;
+                                }
                             }
+                            stack = node.stacks[stackPos];
+                            //stack = node.stacks[node.arm];
 
                             row = null;
                             stack.forEach((object, iterator) => {
@@ -156,23 +160,21 @@ module Planner {
                                     case RELATION.beside:
                                         let col: number;
                                         // Look in the left stack.
-                                        if (node.arm > 0) {
-                                            col = node.arm - 1;
-                                            if (node.stacks[col] != null) {
-                                                found = existInStack(node.stacks[col], literal.args[1]);
-                                            }
+                                        if (stackPos > 0) {
+                                            col = stackPos - 1;
+                                            if (node.stacks[col] != null)
+                                            found = existInStack(node.stacks[col], literal.args[1]);
                                         }
                                         // Look in the right stack if it wasn't found in the left stack.
-                                        if (!found || node.arm < node.stacks.length) {
-                                            col = node.arm + 1;
-                                            if (node.stacks[col] != null) {
-                                                found = existInStack(node.stacks[col], literal.args[1]);
-                                            }
+                                        if (!found && stackPos < node.stacks.length - 1) {
+                                            col = stackPos + 1;
+                                            if (node.stacks[col] != null)
+                                            found = existInStack(node.stacks[col], literal.args[1]);
                                         }
                                         break;
-
+                                        
                                     case RELATION.leftof:
-                                        for (let col: number = node.arm + 1; col < node.stacks.length; col++) {
+                                        for (let col: number = stackPos + 1; col < node.stacks.length; col++) {
                                             if (existInStack(node.stacks[col], literal.args[1])) {
                                                 found = true;
                                                 break;
@@ -181,7 +183,7 @@ module Planner {
                                         break;
 
                                     case RELATION.rightof:
-                                        for (let col: number = node.arm - 1; col >= 0; col--) {
+                                        for (let col: number = stackPos - 1; col >= 0; col--) {
                                             if (existInStack(node.stacks[col], literal.args[1])) {
                                                 found = true;
                                                 break;
