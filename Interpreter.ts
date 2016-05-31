@@ -170,9 +170,7 @@ module Interpreter {
      *
      * @param obj The object
      * @param locObj The location object
-     * @param relation The rela
-     *
-     * tion between the objects
+     * @param relation The relation between the objects
      * @param isLocFloor If the location is the floor
      * @returns True if the vertical relation is allowed.
      */
@@ -214,10 +212,16 @@ module Interpreter {
         return allowed;
     }
 
+    /**
+     * Check if the spatial relations are allowed.
+     *
+     * @param obj to check against locObj
+     * @param locObj to check against obj
+     * @param relation between the objects
+     * @returns {boolean} if it is an allowed arrangement
+     */
     function isAllowed(obj: ObjectDefinition, locObj: ObjectDefinition, relation: string): boolean{
-        // The spatial relation ontop and inside are treated the same way.
-        // Under is handled in the same way except that we change the polarity
-        // of the check.
+
         switch (relation) {
             case RELATION.inside:
             case RELATION.ontop:
