@@ -82,7 +82,6 @@ module Planner {
      */
     function planInterpretation(interpretation : Interpreter.DNFFormula, state : WorldState) : string[] {
 
-        console.log("INTERPRETATION", interpretation);
         var plan : string[] = [];
 
 
@@ -212,41 +211,45 @@ module Planner {
                 for (let j = 0; j < conjuction.length; j++) {
 
                     let literal:any = conjuction[j];
-                    let columns:number[] = getStackColumns(state, literal);
+                    let objCol: number;
+                    // There is only supposed to be one of argument 0 so we take that
+                    if(node.holding === literal.args[0]) objCol = node.arm;
+                    else objCol = (getStackColumns(node.stacks, literal.args[0]))[0];
 
-                    columns.forEach((col) => {
-                            let value: number = Math.abs(node.arm - col);
+                    if(literal.args[1] !== undefined){
+                        let columns:number[] = getStackColumns(node.stacks, literal.args[1]);
+
+                        columns.forEach((col) => {
+                            let value: number = Math.abs(objCol - col);
 
                             switch (literal.relation) {
                                 case RELATION.beside:
                                     value = Math.abs(value - 1);
                                     break;
                                 case RELATION.leftof:
-                                    if(node.arm > col){
-                                       value += 1;
-                                    }
-                                    else if(node.arm < col){
+                                    if (node.arm < col) {
                                         value -= 1;
                                     }
                                     break;
-
                                 case RELATION.rightof:
-                                    if(node.arm > col){
-                                        value -= 1;
-                                    }
-                                    else if(node.arm < col){
+                                    if (node.arm <= col) {
                                         value += 1;
                                     }
                                     break;
+
                             }
+
 
                             if(value < min) min = value;
 
-                    });
+                        });
+                    } else {
+                        min = objCol;
+                    }
                 }
             }
+            console.log(min);
             return min;
-            //return 0;
         }
 
         let result = aStarSearch(graph, startNode, goal, heuristic, 100);
@@ -283,20 +286,22 @@ module Planner {
 
 /**
  *
+ * Get the columns where the literal exists
  *
  * @param state
  * @param literal
  * @returns {number[]}
  */
-function getStackColumns(state: WorldState, literal: any): number[] {
+function getStackColumns(stacks: Stack[], object: string): number[] {
     let col: number[] = [];
-    for(let k: number = 0; k < state.stacks.length; k++) {
-        for(let l: number = 0; l < state.stacks[k].length; l++) {
-            if(state.stacks[k][l] === literal.args[1]) {
+
+    for(let k: number = 0; k < stacks.length; k++) {
+        for(let l: number = 0; l < stacks[k].length; l++) {
+            if(stacks[k][l] === object) {
                 col.push(k);
             }
         }
-        if(literal.args[1] === FORM.floor && state.stacks[k].length === 0) {
+        if(object === FORM.floor && stacks[k].length === 0) {
             col.push(k);
         }
     }
