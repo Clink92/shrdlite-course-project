@@ -53,7 +53,7 @@ module Interpreter {
                 var result: InterpretationResult = <InterpretationResult>parseresult;
                 result.interpretation = interpretCommand(result.parse, currentState);
                 // NOTE: We did not now what to return if there was no result so we return null, if so we do not add it
-                if (result.interpretation) interpretations.push(result);
+                if (result.interpretation !== null) interpretations.push(result);
             } catch (err) {
                 errors.push(err);
             }
@@ -184,7 +184,6 @@ module Interpreter {
         if (!isLocFloor && checkStackRelation(relation)) {
             while(!queue.isEmpty()){
                 currentStack = queue.dequeue();
-                console.log(obj);
                 allowed = isAllowed(obj, currentStack[currentStack.length - 1], relation);
                 if(allowed) break;
                 else {
@@ -358,7 +357,7 @@ module Interpreter {
         switch (location.relation) {
             case RELATION.beside:
                 // x is beside y if they are in adjacent stacks.
-                if(col < state.stacks.length){
+                if(col < state.stacks.length - 1){
                     let dCol: number = col + 1;
                     for(let dRow: number = 0; dRow < state.stacks[dCol].length; dRow++){
                         matchedObject.push(getMatchedObject(location.entity.object, state, dCol, dRow));
