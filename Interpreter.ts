@@ -170,7 +170,9 @@ module Interpreter {
      *
      * @param obj The object
      * @param locObj The location object
-     * @param relation The relation between the objects
+     * @param relation The rela
+     *
+     * tion between the objects
      * @param isLocFloor If the location is the floor
      * @returns True if the vertical relation is allowed.
      */
@@ -286,10 +288,10 @@ module Interpreter {
      * @param stateObject Second object
      * @returns {boolean} True if the objects are the same
      */
-    function objectCompare(obj1: ObjectDefinition, stateObject: ObjectDefinition): boolean {
-        return (obj1.color == stateObject.color  || obj1.color == null)
-            && (obj1.size == stateObject.size    || obj1.size == null)
-            && (obj1.form == stateObject.form    || obj1.form == FORM.anyform && stateObject.form != FORM.floor);
+    function objectCompare(obj: ObjectDefinition, stateObject: ObjectDefinition): boolean {
+        return (obj.color == stateObject.color  || obj.color == null)
+            && (obj.size == stateObject.size    || obj.size == null)
+            && (obj.form == stateObject.form    || obj.form == FORM.anyform && stateObject.form != FORM.floor);
     }
 
     /**

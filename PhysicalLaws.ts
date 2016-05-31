@@ -43,13 +43,14 @@ module PhysicalLaws {
      * @returns {boolean} if it follows the physical laws or not
      */
     export function passLaws(obj: ObjectDefinition, locObj: ObjectDefinition, polarity: boolean): boolean {
-        // Balls cannot support anything.
+
         if (!polarity) {
             let temp: ObjectDefinition = obj;
             obj = locObj;
             locObj = temp;
         }
 
+         // Balls cannot support anything.
         if (locObj.form === FORM.ball) {
             return false;
         }
@@ -60,23 +61,21 @@ module PhysicalLaws {
             switch (obj.form) {
                 case FORM.ball:
                     return locObj.form === FORM.box || locObj.form === FORM.floor;
-
                 case FORM.box:
-                    if (equalSize(obj.size, locObj.size)) {
-                        // Boxes cannot contain pyramids, planks or boxes of the same size.
-                        return !(locObj.form === FORM.pyramid ||
-                            locObj.form === FORM.plank ||
-                            locObj.form === FORM.box);
-                    } else if (getSize(obj.size) === SIZE.small) {
+                    if (getSize(obj.size) === SIZE.small) {
                         // Small boxes cannot be supported by small bricks or pyramids.
-                        return !(locObj.form === FORM.brick || locObj.form === FORM.pyramid);
-                    } else if (getSize(obj.size) == SIZE.large) {
+                        return !((locObj.form === FORM.brick || locObj.form === FORM.pyramid)
+                        && (getSize(locObj.size) === SIZE.small));
+                    } else if (getSize(obj.size) === SIZE.large) {
                         // Large boxes cannot be supported by large pyramids.
                         return !(locObj.form === FORM.pyramid);
                     }
-
-                    return true;
-                    
+                    // Boxes cannot contain boxes of the same size.
+                    return !(equalSize(obj.size, locObj.size) && locObj.form === FORM.box);
+                // Boxes cannot contain pyramids or planks of the same size
+                case FORM.pyramid:
+                case FORM.plank:
+                    return !(equalSize(obj.size, locObj.size) && locObj.form === FORM.box);
                 default:
                     return true;
             }
@@ -121,6 +120,6 @@ module PhysicalLaws {
      * @returns {boolean}
      */
     function equalSize(size1: string, size2: string): boolean {
-        return getSize(size1) == getSize(size2);
+        return getSize(size1) === getSize(size2);
     }
 }
