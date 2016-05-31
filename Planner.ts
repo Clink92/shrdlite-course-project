@@ -105,7 +105,7 @@ module Planner {
             let literal: any;
             let stack: Stack;
             let row: number;
-
+            
             for(let i = 0; i < interpretation.length; i++) {
                 conjuction = interpretation[i];
                 for (let j = 0; j < conjuction.length; j++) {
@@ -114,7 +114,13 @@ module Planner {
                         case RELATION.holding:
                             return literal.args[0] === node.holding;
                         default:
-                            stack = node.stacks[node.arm];
+                            // Find the stack the object is in
+                            for (let i: number = 0; i < node.stacks.length; i++) {
+                                stack = node.stacks[i];
+                                if (existInStack(stack, literal.args[0]))
+                                    break;
+                            }
+
                             row = null;
                             stack.forEach((object, iterator) => {
                                 if(object === literal.args[0]) row = iterator;
