@@ -104,7 +104,7 @@ module Planner {
             let conjuction: any;
             let literal: any;
             let stack: Stack;
-            let row: number;
+            let row: number = null;
             
             for(let i = 0; i < interpretation.length; i++) {
                 conjuction = interpretation[i];
@@ -114,14 +114,18 @@ module Planner {
                         case RELATION.holding:
                             return literal.args[0] === node.holding;
                         default:
+
+                            let stackPos: number;
+
                             // Find the stack the object is in
                             for (let i: number = 0; i < node.stacks.length; i++) {
                                 stack = node.stacks[i];
-                                if (existInStack(stack, literal.args[0]))
+                                if (existInStack(stack, literal.args[0])){
+                                    stackPos = i;
                                     break;
+                                }
                             }
 
-                            row = null;
                             stack.forEach((object, iterator) => {
                                 if(object === literal.args[0]) row = iterator;
                             });
@@ -154,22 +158,21 @@ module Planner {
                                         break;
 
                                     case RELATION.beside:
-                                        console.log("I AM HERE");
                                         let col: number;
                                         // Look in the left stack.
-                                        if (node.arm > 1) {
-                                            col = node.arm - 1;
+                                        if (stackPos > 0) {
+                                            col = stackPos - 1;
                                             found = existInStack(node.stacks[col], literal.args[1]);
                                         }
                                         // Look in the right stack if it wasn't found in the left stack.
-                                        if (!found && node.arm < node.stacks.length - 1) {
-                                            col = node.arm + 1;
+                                        if (!found && stackPos < node.stacks.length - 1) {
+                                            col = stackPos + 1;
                                             found = existInStack(node.stacks[col], literal.args[1]);
                                         }
                                         break;
 
                                     case RELATION.leftof:
-                                        for (let col: number = node.arm + 1; col < node.stacks.length; col++) {
+                                        for (let col: number = stackPos + 1; col < node.stacks.length; col++) {
                                             if (existInStack(node.stacks[col], literal.args[1])) {
                                                 found = true;
                                                 break;
@@ -178,7 +181,7 @@ module Planner {
                                         break;
 
                                     case RELATION.rightof:
-                                        for (let col: number = node.arm - 1; col >= 0; col--) {
+                                        for (let col: number = stackPos - 1; col >= 0; col--) {
                                             if (existInStack(node.stacks[col], literal.args[1])) {
                                                 found = true;
                                                 break;
@@ -204,8 +207,8 @@ module Planner {
                 let value: number = Math.abs(node.arm - col);
                 if(value < min) min = value;
             });
-            return min;
-            //return 0;
+            //return min;
+            return 0;
         }
 
         let result = aStarSearch(graph, startNode, goal, heuristic, 100);
