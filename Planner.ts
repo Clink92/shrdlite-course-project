@@ -140,7 +140,6 @@ module Planner {
                                         }
                                         break;
                                     
-                                    // SOmething stupid with big boxes and planks
                                     case RELATION.above:
                                         for (let i: number = row - 1; i >= 0; i--) {
                                             if (stack[i] === literal.args[1]) {
@@ -152,43 +151,36 @@ module Planner {
 
                                     case RELATION.beside:
                                         let col: number;
+                                        // Look in the left stack.
                                         if (node.arm > 0) {
                                             col = node.arm - 1;
-                                            for (let i: number = 0; i < node.stacks[col].length; i++) {
-                                                if (node.stacks[col][i] === literal.args[1]) {
-                                                    found = true;
-                                                    break;
-                                                }
+                                            if (node.stacks[col] != null) {
+                                                found = existInStack(node.stacks[col], literal.args[1]);
                                             }
                                         }
-                                        if (node.arm < node.stacks.length) {
+                                        // Look in the right stack if it wasn't found in the left stack.
+                                        if (!found || node.arm < node.stacks.length) {
                                             col = node.arm + 1;
-                                            for (let i: number = 0; i < node.stacks[col].length; i++) {
-                                                if (node.stacks[col][i] === literal.args[1]) {
-                                                    found = true;
-                                                    break;
-                                                }
+                                            if (node.stacks[col] != null) {
+                                                found = existInStack(node.stacks[col], literal.args[1]);
                                             }
                                         }
                                         break;
 
                                     case RELATION.leftof:
                                         for (let col: number = node.arm + 1; col < node.stacks.length; col++) {
-                                            for (let i: number = 0; i < node.stacks[col].length; i++) {
-                                                if (node.stacks[col][i] === literal.args[1]) {
-                                                    found = true;
-                                                    break;
-                                                }
+                                            if (existInStack(node.stacks[col], literal.args[1])) {
+                                                found = true;
+                                                break;
                                             }
                                         }
                                         break;
+
                                     case RELATION.rightof:
                                         for (let col: number = node.arm - 1; col >= 0; col--) {
-                                            for (let i: number = 0; i < node.stacks[col].length; i++) {
-                                                if (node.stacks[col][i] === literal.args[1]) {
-                                                    found = true;
-                                                    break;
-                                                }
+                                            if (existInStack(node.stacks[col], literal.args[1])) {
+                                                found = true;
+                                                break;
                                             }
                                         }
                                         break;
@@ -276,4 +268,15 @@ function getStackDiff(state: WorldState, interpretation: Interpreter.DNFFormula)
         }
     }
     return diff;
+}
+
+function existInStack(stack: string[], obj: any): boolean {
+    let exist: boolean = false;
+    for (let row: number = 0; row < stack.length; row++) {
+        if (stack[row] === obj) {
+            exist = true;
+            break;
+        }
+    }
+    return exist;
 }
