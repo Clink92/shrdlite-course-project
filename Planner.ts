@@ -244,11 +244,10 @@ module Planner {
 
                         });
                     } else {
-                        min = objCol;
+                        min = Math.abs(objCol - node.arm);
                     }
                 }
             }
-            console.log(min);
             return min;
         }
 
