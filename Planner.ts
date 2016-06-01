@@ -221,7 +221,9 @@ module Planner {
                     if(literal.args[1] !== undefined){
                         console.log("SEARCHING STUFF");
                         console.log("RELATION", literal.relation);
-                        let positions: pos = getObjectPositions(node.stacks, literal.args[1]);
+                        let positions: pos = [];
+                        if(node.holding === literal.args[1]) positions.push({col: node.arm, row: null});
+                        else positions = getObjectPositions(node.stacks, literal.args[1]);
 
                         positions.forEach((pos) => {
                             console.log(pos);
