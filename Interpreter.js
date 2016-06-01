@@ -41,7 +41,7 @@ var Interpreter;
                 var result = parseresult;
                 result.interpretation = interpretCommand(result.parse, currentState);
                 // NOTE: We did not now what to return if there was no result so we return null, if so we do not add it
-                if (result.interpretation)
+                if (result.interpretation !== null)
                     interpretations.push(result);
             }
             catch (err) {
@@ -99,7 +99,7 @@ var Interpreter;
                     locationObjects.forEach(function (locObj) {
                         // Push the interpretation if it passes the physical laws
                         if (state.objects[obj] !== state.objects[locObj]
-                            && verticalRelationAllowed(state.objects[obj], state.objects[locObj], location.relation, locObj === FORM.floor)) {
+                            && verticalRelationAllowed(state.objects[obj], state.objects[locObj], state, location.relation, locObj === FORM.floor)) {
                             interpretation.push(getGoal(true, location.relation, [obj, locObj]));
                         }
                     });
@@ -111,7 +111,7 @@ var Interpreter;
             locationObjects.forEach(function (locObj) {
                 // Push the interpretation if it passes the physical laws
                 if (state.objects[state.holding] !== state.objects[locObj]
-                    && verticalRelationAllowed(state.objects[state.holding], state.objects[locObj], location.relation, locObj === FORM.floor)) {
+                    && verticalRelationAllowed(state.objects[state.holding], state.objects[locObj], state, location.relation, locObj === FORM.floor)) {
                     interpretation.push(getGoal(true, location.relation, [state.holding, locObj]));
                 }
             });
@@ -124,29 +124,34 @@ var Interpreter;
      *
      * @param obj The object
      * @param locObj The location object
-     * @param relation The rela
-     *
-     * tion between the objects
+     * @param relation The relation between the objects
      * @param isLocFloor If the location is the floor
      * @returns True if the vertical relation is allowed.
      */
-    function verticalRelationAllowed(obj, locObj, relation, isLocFloor) {
+    function verticalRelationAllowed(obj, locObj, state, relation, isLocFloor) {
         // Assume true since an object with no stack relation can always be placed
         var allowed = true;
+        var queue = new collections.Queue();
+        queue.add([locObj]);
+        var currentStack;
         if (!isLocFloor && checkStackRelation(relation)) {
-            // The spatial relation ontop and inside are treated the same way.
-            // Under is handled in the same way except that we change the polarity
-            // of the check.
-            switch (relation) {
-                case RELATION.inside:
-                case RELATION.ontop:
-                    allowed = passLaws(obj, locObj, true);
+            while (!queue.isEmpty()) {
+                currentStack = queue.dequeue();
+                allowed = isAllowed(obj, currentStack[currentStack.length - 1], relation);
+                if (allowed)
                     break;
-                case RELATION.under:
-                    allowed = passLaws(obj, locObj, false);
-                    break;
-                default:
-                    break;
+                else {
+                    for (var col = 0; col < state.stacks.length; col++) {
+                        var stack = state.stacks[col];
+                        for (var row = 0; row < stack.length; row++) {
+                            var object = stack[row];
+                            if (currentStack.indexOf(state.objects[object]) === -1 && isAllowed(state.objects[object], currentStack[currentStack.length - 1], relation)) {
+                                currentStack.push(state.objects[object]);
+                                queue.enqueue(currentStack);
+                            }
+                        }
+                    }
+                }
             }
         }
         else if (isLocFloor) {
@@ -154,6 +159,25 @@ var Interpreter;
             allowed = (relation === RELATION.ontop || relation === RELATION.above);
         }
         return allowed;
+    }
+    /**
+     * Check if the spatial relations are allowed.
+     *
+     * @param obj to check against locObj
+     * @param locObj to check against obj
+     * @param relation between the objects
+     * @returns {boolean} if it is an allowed arrangement
+     */
+    function isAllowed(obj, locObj, relation) {
+        switch (relation) {
+            case RELATION.inside:
+            case RELATION.ontop:
+                return passLaws(obj, locObj, true);
+            case RELATION.under:
+                return passLaws(obj, locObj, false);
+            default:
+                return true;
+        }
     }
     /**
      * Finds all the objects that matches the entity description
@@ -261,7 +285,7 @@ var Interpreter;
         switch (location.relation) {
             case RELATION.beside:
                 // x is beside y if they are in adjacent stacks.
-                if (col < state.stacks.length) {
+                if (col < state.stacks.length - 1) {
                     var dCol = col + 1;
                     for (var dRow_1 = 0; dRow_1 < state.stacks[dCol].length; dRow_1++) {
                         matchedObject.push(getMatchedObject(location.entity.object, state, dCol, dRow_1));
@@ -298,7 +322,6 @@ var Interpreter;
                 break;
             case RELATION.under:
                 // x is under y if it is somewhere below.
-                console.log("UNDER");
                 if (row < (state.stacks[col].length - 1)) {
                     var dRow_5 = row + 1;
                     matchedObject.push(getMatchedObject(location.entity.object, state, col, dRow_5));
