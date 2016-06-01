@@ -62,6 +62,10 @@ module PhysicalLaws {
                 case FORM.ball:
                     return locObj.form === FORM.box || locObj.form === FORM.floor;
                 case FORM.box:
+                    if(getSize(obj.size) === getSize(locObj.size)){
+                        // Box of the same size cannot be supported
+                        return locObj.form !== FORM.box;
+                    }
                     if (getSize(obj.size) === SIZE.small) {
                         // Small boxes cannot be supported by small bricks or pyramids.
                         return !((locObj.form === FORM.brick || locObj.form === FORM.pyramid)
