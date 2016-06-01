@@ -99,6 +99,21 @@ var allTestCases = [
         utterance: "put a box beside the floor",
         interpretations: []
     },
+    {
+        world: "small",
+        utterance: "put a ball on a floor under the table",
+        interpretations: []
+    },
+    {
+        world: "small",
+        utterance: "put a ball on the red floor",
+        interpretations: []
+    },
+    {
+        world: "small",
+        utterance: "drop it on the floor",
+        interpretations: [["ontop(a,floor)"]]
+    },
 ];
 // /* Simple test cases for the ALL quantifier, uncomment if you want */
 // allTestCases.push(
