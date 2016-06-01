@@ -203,52 +203,144 @@ module Planner {
         }
 
         function heuristic(node: WorldNode): number {
-
-            let min:number = Number.MAX_VALUE;
+            /*let min:number = Number.MAX_VALUE;
 
             for(let i = 0; i < interpretation.length; i++) {
-                let conjuction:any = interpretation[i];
-                for (let j = 0; j < conjuction.length; j++) {
+                let conjuction: any = interpretation[i];
+                if (conjuction.length > 0) {
+                    for (let j = 0; j < conjuction.length; j++) {
 
-                    let literal:any = conjuction[j];
-                    let objCol: number;
-                    // There is only supposed to be one of argument 0 so we take that
-                    if(node.holding === literal.args[0]) objCol = node.arm;
-                    else objCol = (getStackColumns(node.stacks, literal.args[0]))[0];
+                        let literal: any = conjuction[j];
+                        let objCol: number;
+                        // There is only supposed to be one of argument 0 so we take that
+                        if (node.holding === literal.args[0]) objCol = node.arm;
+                        else objCol = (getStackColumns(node.stacks, literal.args[0]))[0];
 
-                    if(literal.args[1] !== undefined){
-                        let columns:number[] = getStackColumns(node.stacks, literal.args[1]);
+                        if (literal.args[1] !== undefined) {
+                            let columns: number[] = getStackColumns(node.stacks, literal.args[1]);
 
-                        columns.forEach((col) => {
-                            let value: number = Math.abs(objCol - col);
+                            columns.forEach((col) => {
+                                let value: number = Math.abs(objCol - col);
 
-                            switch (literal.relation) {
-                                case RELATION.beside:
-                                    value = Math.abs(value - 1);
-                                    break;
-                                case RELATION.leftof:
-                                    if (node.arm < col) {
-                                        value -= 1;
-                                    }
-                                    break;
-                                case RELATION.rightof:
-                                    if (node.arm <= col) {
-                                        value += 1;
-                                    }
-                                    break;
+                                switch (literal.relation) {
+                                    case RELATION.beside:
+                                        value = Math.abs(value - 1);
+                                        break;
+                                    case RELATION.leftof:
+                                        if (node.arm < col) {
+                                            value -= 1;
+                                        }
+                                        else if (node.arm >= col) {
+                                            value += 1;
+                                        }
+                                        break;
+                                    case RELATION.rightof:
+                                        if (node.arm <= col) {
+                                            value += 1;
+                                        }
+                                        else if (node.arm > col) {
+                                            value -= 1;
+                                        }
+                                        break;
 
-                            }
+                                }
 
 
-                            if(value < min) min = value;
+                                if (value < min) {
+                                    min = value;
+                                }
 
-                        });
-                    } else {
-                        min = Math.abs(objCol - node.arm);
+                            });
+                        } else {
+                            min = Math.abs(objCol - node.arm);
+                        }
                     }
                 }
             }
+            return min;*/
+
+
+            /*
+            does not work
+            // Heuristic: We must at least pick up the object to be moved 
+            let h: number = 0;
+            let obj: string = interpretation[0][0].args[0];
+            
+            let pos: number = -1;
+            let stack: number;
+            // Find the objects position in a stack
+            for (let k: number = 0; k < node.stacks.length; k++) {
+                pos = posInStack(node.stacks[k], obj);
+                if (pos != 1) {
+                    stack = k;
+                    break;
+                }
+            }
+
+            // How deep down in the stack the object is
+            let depth: number = node.stacks[stack].length - pos;
+                    
+            // h = objects depth
+            h = depth + Math.abs(node.arm - stack);
+
+            return h;
+            */
+
+            
+            // Heuristic: We must at least pick up the object to be moved
+            let min: number = Number.MAX_VALUE;
+            let h: number = 0;
+            let obj: string = "";
+            let pos: number;
+            let depth: number;
+            let stack: number;
+            let stacks: string[][] = node.stacks;
+            for (let i = 0; i < interpretation.length; i++) {
+                let conjuction: any = interpretation[i];
+
+                for (let j = 0; j < conjuction.length; j++) {
+                    let literal: any = conjuction[j];
+
+                    // Reset heuristic for this literal
+                    h = 0;
+
+                    // If we haven't had this object before we must search for it
+                    if (obj !== literal.args[0]) {
+                        obj = literal.args[0];
+
+                        if (node.holding === obj) {
+                            break;
+                        }
+                        
+                        // Find the objects position in a stack
+                        for (let k: number = 0; k < stacks.length; k++) {
+                            pos = posInStack(stacks[k], obj);
+                            if (pos != 1) {
+                                stack = k;
+                                break;
+                            }
+                        }
+
+                        // How deep down in the stack the object is
+                        depth = node.stacks[stack].length - pos;
+                    }
+                    // Heuristic = objects depth in stack + how far the arm must move to the stack + a pick/drop action
+                    h = depth + Math.abs(node.arm - stack);
+                    
+                }
+                
+                if (h < min) {
+                    min = h;
+                    if (min === 0) {
+                        // Lowest admissable heuristic is zero
+                        break;
+                    }
+                }
+            }
+            //console.log("heuristic", min);
             return min;
+            
+            //return 0;
         }
 
         let result = aStarSearch(graph, startNode, goal, heuristic, 100);
@@ -316,4 +408,22 @@ function existInStack(stack: string[], obj: string): boolean {
         }
     }
     return exist;
+}
+
+/**
+ * Finds an objects position in a stack.
+ * Returns -1 if the object is not inn the stack
+ *
+ * @param stack Stack to find the position in
+ * @param obj Object to search for
+ */
+function posInStack(stack: string[], obj: string): number {
+    let pos: number = -1;
+    for (let row: number = 0; row < stack.length; row++) {
+        if (stack[row] === obj) {
+            pos = row;
+            break;
+        }
+    }
+    return pos;
 }
