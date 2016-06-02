@@ -205,32 +205,29 @@ module Planner {
         function heuristic(node: WorldNode): number {
             let h: number = Number.MAX_VALUE;
             let curH: number = 0;
-            let obj: string = "";
+            let obj: string;
             let pos: number;
             let depth: number;
             let stack: number;
             let stacks: string[][] = node.stacks;
             for (let i = 0; i < interpretation.length; i++) {
                 let conjuction: any = interpretation[i];
-                
+                obj = "";
                 if (conjuction.length) {
                     for (let j = 0; j < conjuction.length; j++) {
                         let literal: any = conjuction[j];
-                        
+
                         // Reset current heuristic for this literal
                         curH = 0;
 
                         // If we haven't had this object before we must search for it
                         if (obj !== literal.args[0]) {
                             obj = literal.args[0];
-                       
                             // If the object is held heuristic is 1 because we must at least drop it
                             if (node.holding === obj) {
                                 h = 1;
                                 break;
                             }
-                        
-
                             // Find the objects position in a stack
                             for (let k: number = 0; k < stacks.length; k++) {
                                 pos = posInStack(stacks[k], obj);
@@ -239,21 +236,12 @@ module Planner {
                                     break;
                                 }
                             }
-                        
                             // How deep down in the stack the object is
                             depth = stacks[stack].length - pos;
+                        }
+                        // Heuristic = depth + arm movement to stack + pick up object + 2 actions to remove other objects
+                        curH = depth + Math.abs(node.arm - stack) + 1 + ((stacks[stack].length - depth) * 2);
 
-                        }
-                    
-                        if (stacks[stack]) {
-                            // Heuristic = depth + arm movement to the stack + pick up the object + 2 actions to remove other objects
-                            curH = depth + Math.abs(node.arm - stack) + 1 + ((stacks[stack].length - depth) * 2);
-                        }
-                        else {
-                            // No stack but meh
-                            curH = depth + Math.abs(node.arm - stack) + 1;
-                        }
-                    
                         // If current heuristic is lower, it should be used
                         if (curH < h) {
                             h = curH;
@@ -298,64 +286,40 @@ module Planner {
 
         return plan;
     }
-}
 
-/**
- *
- * Get the columns where the literal exists
- *
- * @param state
- * @param literal
- * @returns {number[]}
- */
-function getStackColumns(stacks: Stack[], object: string): number[] {
-    let col: number[] = [];
-
-    for(let k: number = 0; k < stacks.length; k++) {
-        for(let l: number = 0; l < stacks[k].length; l++) {
-            if(stacks[k][l] === object) {
-                col.push(k);
+    /**
+    * Checks if an object is present in a stack
+    *
+    * @param stack Stack to check
+    * @param obj Object to search for
+    *@returns True if the object exist in the stack
+    */
+    function existInStack(stack: string[], obj: string): boolean {
+        let exist: boolean = false;
+        for (let row: number = 0; row < stack.length; row++) {
+            if (stack[row] === obj) {
+                exist = true;
+                break;
             }
         }
-        if(object === FORM.floor && stacks[k].length === 0) {
-            col.push(k);
-        }
+        return exist;
     }
-    return col;
-}
 
-/**
- * Checks if an object is present in a stack
- *
- * @param stack Stack to check
- * @param obj Object to search for
- *@returns True if the object exist in the stack
- */
-function existInStack(stack: string[], obj: string): boolean {
-    let exist: boolean = false;
-    for (let row: number = 0; row < stack.length; row++) {
-        if (stack[row] === obj) {
-            exist = true;
-            break;
+    /**
+    * Finds an objects position in a stack.
+    *
+    * @param stack Stack to find the position in
+    * @param obj Object to search for
+    * @returns Index for the objects position. -1 if it is not present in the stack
+    */
+    function posInStack(stack: string[], obj: string): number {
+        let pos: number = -1;
+        for (let row: number = 0; row < stack.length; row++) {
+            if (stack[row] === obj) {
+                pos = row;
+                break;
+            }
         }
+        return pos;
     }
-    return exist;
-}
-
-/**
- * Finds an objects position in a stack.
- *
- * @param stack Stack to find the position in
- * @param obj Object to search for
- *@returns Index for the objects position. -1 if it is not present in the stack
- */
-function posInStack(stack: string[], obj: string): number {
-    let pos: number = -1;
-    for (let row: number = 0; row < stack.length; row++) {
-        if (stack[row] === obj) {
-            pos = row;
-            break;
-        }
-    }
-    return pos;
 }
