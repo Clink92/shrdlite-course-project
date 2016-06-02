@@ -203,8 +203,8 @@ module Planner {
         }
  
         function heuristic(node: WorldNode): number {
-            let min: number = Number.MAX_VALUE;
-            let h: number = 0;
+            let h: number = Number.MAX_VALUE;
+            let curH: number = 0;
             let obj: string = "";
             let pos: number;
             let depth: number;
@@ -212,11 +212,18 @@ module Planner {
             let stacks: string[][] = node.stacks;
             for (let i = 0; i < interpretation.length; i++) {
                 let conjuction: any = interpretation[i];
+
+                // If there are no conjuctions, set heuristic to zero
+                if (conjuction.lenght == null) {
+                    h = 0;
+                    break;
+                }
+
                 for (let j = 0; j < conjuction.length; j++) {
                     let literal: any = conjuction[j];
 
-                    // Reset heuristic for this literal
-                    h = 0;
+                    // Reset current heuristic for this literal
+                    curH = 0;
 
                     // If we haven't had this object before we must search for it
                     if (obj !== literal.args[0]) {
@@ -228,6 +235,7 @@ module Planner {
                             break;
                         }
                         
+
                         // Find the objects position in a stack
                         for (let k: number = 0; k < stacks.length; k++) {
                             pos = posInStack(stacks[k], obj);
@@ -236,29 +244,25 @@ module Planner {
                                 break;
                             }
                         }
-
+                        
                         // How deep down in the stack the object is
                         depth = node.stacks[stack].length - pos;
+                        
                     }
-
+                    
                     // Heuristic = depth in stack + how far the arm must move to the stack + 1 pick action for the object + 2 pick/drop for objects above
-                    h = depth + Math.abs(node.arm - stack) + 1 + ((node.stacks[stack].length - depth) * 2);
-
-                    // This heuristic is lower than previous ones and can therefore be admissible
-                    if (h < min) {
-                        min = h;
+                    curH = depth + Math.abs(node.arm - stack) + 1 + ((node.stacks[stack].length - depth) * 2);
+    
+                    // If current heuristic is lower, it should be used
+                    if (curH < h) {
+                        h = curH;
                     }
                 }
             }
             
-            // If min is still the max value it means that there where no interpretations and we should return 0
-            if (min === Number.MAX_VALUE) {
-                min = 0;
-            }
-            
-            return min;
+            return h;
         }
-
+        
         let result = aStarSearch(graph, startNode, goal, heuristic, 100);
         
         return getPlan(result.actions);
