@@ -213,46 +213,40 @@ module Planner {
             for (let i = 0; i < interpretation.length; i++) {
                 let conjuction: any = interpretation[i];
                 obj = "";
-                if (conjuction.length) {
-                    for (let j = 0; j < conjuction.length; j++) {
-                        let literal: any = conjuction[j];
+                for (let j = 0; j < conjuction.length; j++) {
+                    let literal: any = conjuction[j];
 
-                        // Reset current heuristic for this literal
-                        curH = 0;
+                    // Reset current heuristic for this literal
+                    curH = 0;
 
-                        // If we haven't had this object before we must search for it
-                        if (obj !== literal.args[0]) {
-                            obj = literal.args[0];
-                            // If the object is held heuristic is 1 because we must at least drop it
-                            if (node.holding === obj) {
-                                h = 1;
+                    // If we haven't had this object before we must search for it
+                    if (obj !== literal.args[0]) {
+                        obj = literal.args[0];
+                        // If the object is held heuristic is 1 because we must at least drop it
+                        if (node.holding === obj) {
+                            h = 1;
+                            break;
+                        }
+                        // Find the objects position in a stack
+                        for (let k: number = 0; k < stacks.length; k++) {
+                            pos = posInStack(stacks[k], obj);
+                            if (pos != -1) {
+                                stack = k;
                                 break;
                             }
-                            // Find the objects position in a stack
-                            for (let k: number = 0; k < stacks.length; k++) {
-                                pos = posInStack(stacks[k], obj);
-                                if (pos != -1) {
-                                    stack = k;
-                                    break;
-                                }
-                            }
-                            // How deep down in the stack the object is
-                            depth = stacks[stack].length - pos;
                         }
-                        // Heuristic = depth + arm movement to stack + pick up object + 2 actions to remove other objects
-                        curH = depth + Math.abs(node.arm - stack) + 1 + ((stacks[stack].length - depth) * 2);
+                        // How deep down in the stack the object is
+                        depth = stacks[stack].length - pos;
+                    }
+                    // Heuristic = depth + arm movement to stack + pick up object + 2 actions to remove other objects
+                    curH = depth + Math.abs(node.arm - stack) + 1 + ((stacks[stack].length - depth) * 2);
 
-                        // If current heuristic is lower, it should be used
-                        if (curH < h) {
-                            h = curH;
-                        }
+                    // If current heuristic is lower, it should be used
+                    if (curH < h) {
+                        h = curH;
                     }
                 }
             }
-
-            if (h == Number.MAX_VALUE)
-                h = 0;
-            
             return h;
         }
         
