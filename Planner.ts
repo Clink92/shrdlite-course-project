@@ -212,53 +212,58 @@ module Planner {
             let stacks: string[][] = node.stacks;
             for (let i = 0; i < interpretation.length; i++) {
                 let conjuction: any = interpretation[i];
-
-                // If there are no conjuctions, set heuristic to zero
-                if (conjuction.lenght == null) {
-                    h = 0;
-                    break;
-                }
-
-                for (let j = 0; j < conjuction.length; j++) {
-                    let literal: any = conjuction[j];
-
-                    // Reset current heuristic for this literal
-                    curH = 0;
-
-                    // If we haven't had this object before we must search for it
-                    if (obj !== literal.args[0]) {
-                        obj = literal.args[0];
+                
+                if (conjuction.length) {
+                    for (let j = 0; j < conjuction.length; j++) {
+                        let literal: any = conjuction[j];
                         
-                        // If the object is held.
-                        if (node.holding === obj) {
-                            // TODO: Handle the case when the object is hold. For now settle with 0
-                            break;
-                        }
-                        
+                        // Reset current heuristic for this literal
+                        curH = 0;
 
-                        // Find the objects position in a stack
-                        for (let k: number = 0; k < stacks.length; k++) {
-                            pos = posInStack(stacks[k], obj);
-                            if (pos != 1) {
-                                stack = k;
+                        // If we haven't had this object before we must search for it
+                        if (obj !== literal.args[0]) {
+                            obj = literal.args[0];
+                       
+                            // If the object is held heuristic is 1 because we must at least drop it
+                            if (node.holding === obj) {
+                                h = 1;
                                 break;
                             }
+                        
+
+                            // Find the objects position in a stack
+                            for (let k: number = 0; k < stacks.length; k++) {
+                                pos = posInStack(stacks[k], obj);
+                                if (pos != -1) {
+                                    stack = k;
+                                    break;
+                                }
+                            }
+                        
+                            // How deep down in the stack the object is
+                            depth = stacks[stack].length - pos;
+
                         }
-                        
-                        // How deep down in the stack the object is
-                        depth = node.stacks[stack].length - pos;
-                        
-                    }
                     
-                    // Heuristic = depth in stack + how far the arm must move to the stack + 1 pick action for the object + 2 pick/drop for objects above
-                    curH = depth + Math.abs(node.arm - stack) + 1 + ((node.stacks[stack].length - depth) * 2);
-    
-                    // If current heuristic is lower, it should be used
-                    if (curH < h) {
-                        h = curH;
+                        if (stacks[stack]) {
+                            // Heuristic = depth + arm movement to the stack + pick up the object + 2 actions to remove other objects
+                            curH = depth + Math.abs(node.arm - stack) + 1 + ((stacks[stack].length - depth) * 2);
+                        }
+                        else {
+                            // No stack but meh
+                            curH = depth + Math.abs(node.arm - stack) + 1;
+                        }
+                    
+                        // If current heuristic is lower, it should be used
+                        if (curH < h) {
+                            h = curH;
+                        }
                     }
                 }
             }
+
+            if (h == Number.MAX_VALUE)
+                h = 0;
             
             return h;
         }
