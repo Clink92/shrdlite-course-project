@@ -207,7 +207,7 @@ module Planner {
             let curH: number = 0;
             let obj: string;
             let pos: number;
-            let depth: number;
+            let objsAbove: number;
             let stack: number;
             let stacks: string[][] = node.stacks;
             for (let i = 0; i < interpretation.length; i++) {
@@ -235,11 +235,11 @@ module Planner {
                                 break;
                             }
                         }
-                        // How deep down in the stack the object is
-                        depth = stacks[stack].length - pos;
+                        // Calculate the amount of objects above the one we whish to pick up
+                        objsAbove = stacks[stack].length - pos - 1;
                     }
-                    // Heuristic = depth + arm movement to stack + pick up object + 2 actions to remove other objects
-                    curH = depth + Math.abs(node.arm - stack) + 1 + ((stacks[stack].length - depth) * 2);
+                    // Heuristic = 4 actions to remove objects above + arm movement to stack + pick up object
+                    curH = objsAbove * 4 + Math.abs(node.arm - stack) + 1;
 
                     // If current heuristic is lower, it should be used
                     if (curH < h) {
