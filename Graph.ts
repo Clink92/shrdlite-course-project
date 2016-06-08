@@ -176,7 +176,9 @@ function aStarSearch<Node> (
         }
 
         deltaTime = Date.now() - startTime;
-	}
+    }
+
+    // TODO: Throw an error if it timed out without finding a solution.
 
     return result;
 }

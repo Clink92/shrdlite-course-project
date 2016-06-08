@@ -250,6 +250,7 @@ module Planner {
             return h;
         }
         
+        // TODO: Do a* in a try-catch. Catch the error thrown on timeout and make the slow robot say a lame excuse.
         let result = aStarSearch(graph, startNode, goal, heuristic, 100);
         
         return getPlan(result.actions);
