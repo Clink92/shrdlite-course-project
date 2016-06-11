@@ -145,7 +145,7 @@ module Interpreter {
                 }
             });
         }
-                
+
         return (interpretation.length !== 0) ? interpretation: null;
     }
 
@@ -211,8 +211,15 @@ module Interpreter {
 
         switch (relation) {
             case RELATION.inside:
+                if(locObj.form === FORM.box) {
+                    return passLaws(obj, locObj, true);
+                }
+                return false;
             case RELATION.ontop:
-                return passLaws(obj, locObj, true);
+                if(locObj.form !== FORM.box) {
+                    return passLaws(obj, locObj, true);
+                }
+                return false;
             case RELATION.under:
                 return passLaws(obj, locObj, false);
             default:
@@ -379,10 +386,19 @@ module Interpreter {
                 break;
 
             case RELATION.ontop:
+                if(location.entity.object.form !== FORM.box) {
+                    //x is on top of y if it is directly on top – the same relation is called inside if y is a box.
+                    let dRow:number = row - 1;
+                    matchedObject.push(getMatchedObject(location.entity.object, state, col, dRow));
+                }
+                break;
+
             case RELATION.inside:
-                //x is on top of y if it is directly on top – the same relation is called inside if y is a box.
-                let dRow: number = row - 1;
-                matchedObject.push(getMatchedObject(location.entity.object, state, col, dRow));
+                if(location.entity.object.form === FORM.box) {
+                    //x is on top of y if it is directly on top – the same relation is called inside if y is a box.
+                    let dRow:number = row - 1;
+                    matchedObject.push(getMatchedObject(location.entity.object, state, col, dRow));
+                }
                 break;
 
             case RELATION.under:
