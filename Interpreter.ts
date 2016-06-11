@@ -163,6 +163,9 @@ module Interpreter {
         // Assume true since an object with no stack relation can always be placed
         let allowed: boolean = true;
         let queue: collections.Queue<ObjectDefinition[]> = new collections.Queue<ObjectDefinition[]>();
+
+        let objects: ObjectDefinition[] = getWorldObjects(state);
+
         queue.add([locObj]);
 
         let currentStack: ObjectDefinition[];
@@ -175,20 +178,14 @@ module Interpreter {
                     break;
                 }
                 else if(relation === RELATION.under || relation === RELATION.above) {
-                    for(let col: number = 0; col < state.stacks.length; col++) {
-                        let stack:Stack = state.stacks[col];
-
-                        for (let row:number = 0; row < stack.length; row++) {
-                            let object:string = stack[row];
-
-                            if (currentStack.indexOf(state.objects[object]) === -1 && isAllowed(state.objects[object], currentStack[currentStack.length - 1], relation)){
-                                currentStack.push(state.objects[object]);
-                                queue.enqueue(currentStack);
-                            }
+                    for(let i = 0; i < objects.length; i++){
+                        let object: ObjectDefinition = objects[i];
+                        if (currentStack.indexOf(object) === -1 && isAllowed(object, currentStack[currentStack.length - 1], relation)){
+                            let newStack: ObjectDefinition[] = copy(currentStack);
+                            newStack.push(object);
+                            queue.enqueue(newStack);
                         }
-
                     }
-
                 }
             }
         }
@@ -198,6 +195,20 @@ module Interpreter {
         }
 
         return allowed;
+    }
+
+    function getWorldObjects(state: WorldState): ObjectDefinition[] {
+        let objects: ObjectDefinition[] = [];
+        if(state.holding !== null){
+            objects.push(state.objects[state.holding]);
+        }
+        for(let col: number = 0; col < state.stacks.length; col++) {
+            let stack:Stack = state.stacks[col];
+            for (let row:number = 0; row < stack.length; row++) {
+                objects.push(state.objects[stack[row]]);
+            }
+        }
+        return objects;
     }
 
     /**
