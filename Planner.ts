@@ -227,7 +227,7 @@ module Planner {
                                 break;
                             }
                         }
-                        // Calculate the amount of objects above the one we whish to pick up
+                        // Calculate the amount of objects above the one we wish to pick up
                         objsAbove = stacks[stack].length - pos - 1;
                     }
                     // Heuristic = 4 actions to remove objects above + arm movement to stack + pick up object
