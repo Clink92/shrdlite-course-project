@@ -180,6 +180,7 @@ module Interpreter {
 
                         for (let row:number = 0; row < stack.length; row++) {
                             let object:string = stack[row];
+
                             if (currentStack.indexOf(state.objects[object]) === -1 && isAllowed(state.objects[object], currentStack[currentStack.length - 1], relation)){
                                 currentStack.push(state.objects[object]);
                                 queue.enqueue(currentStack);
@@ -215,6 +216,8 @@ module Interpreter {
                     return passLaws(obj, locObj, true);
                 }
                 return false;
+            case RELATION.above:
+                return passLaws(obj, locObj, true);
             case RELATION.ontop:
                 if(locObj.form !== FORM.box) {
                     return passLaws(obj, locObj, true);

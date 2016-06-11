@@ -99,8 +99,7 @@ module Planner {
             let conjuction: any;
             let literal: any;
             let stack: Stack;
-            let row: number = null;
-            
+
             for(let i = 0; i < interpretation.length; i++) {
                 conjuction = interpretation[i];
                 for (let j = 0; j < conjuction.length; j++) {
@@ -121,6 +120,7 @@ module Planner {
                                 }
                             }
 
+                            let row: number = null;
                             stack.forEach((object, iterator) => {
                                 if(object === literal.args[0]) row = iterator;
                             });
