@@ -13,23 +13,7 @@ import FORM = PhysicalLaws.FORM;
 
 //var bunyan = require('bunyan');
 
-/**
- * Interpreter module
- *
- * The goal of the Interpreter module is to interpret a sentence
- * written by the user in the context of the current world state. In
- * particular, it must figure out which objects in the world,
- * i.e. which elements in the `objects` field of WorldState, correspond
- * to the ones referred to in the sentence.
- *
- * Moreover, it has to derive what the intended goal state is and
- * return it as a logical formula described in terms of literals, where
- * each literal represents a relation among objects that should
- * hold. For example, assuming a world state where "a" is a ball and
- * "b" is a table, the command "put the ball on the table" can be
- * interpreted as the literal ontop(a,b). More complex goals can be
- * written using conjunctions and disjunctions of these literals.
- */
+
 module Interpreter {
 
     //////////////////////////////////////////////////////////////////////
@@ -135,14 +119,15 @@ module Interpreter {
                 });
             }
             else {
-                var locationObjects: string[] = findObjects(location.entity, state, true);
+                let locationObjects: string[] = findObjects(location.entity, state, true);
 
                 objects.forEach((obj): void => {
                     locationObjects.forEach((locObj): void => {
                         // Push the interpretation if it passes the physical laws
-                        if (state.objects[obj] !== state.objects[locObj]
-                            && verticalRelationAllowed(state.objects[obj], state.objects[locObj], state, location.relation, locObj === FORM.floor)) {
-                            interpretation.push(getGoal(true, location.relation, [obj, locObj]));
+                        if (state.objects[obj] !== state.objects[locObj]){
+                            if(verticalRelationAllowed(state.objects[obj], state.objects[locObj], state, location.relation, locObj === FORM.floor)) {
+                                interpretation.push(getGoal(true, location.relation, [obj, locObj]));
+                            }
                         }
                     })
                 });
@@ -150,7 +135,7 @@ module Interpreter {
 
         }
         else if(cmd.command === "put") {
-            var locationObjects = findObjects(location.entity, state, true);
+            let locationObjects = findObjects(location.entity, state, true);
 
             locationObjects.forEach(function (locObj) {
                 // Push the interpretation if it passes the physical laws
@@ -160,7 +145,7 @@ module Interpreter {
                 }
             });
         }
-
+                
         return (interpretation.length !== 0) ? interpretation: null;
     }
 
@@ -185,8 +170,11 @@ module Interpreter {
             while(!queue.isEmpty()){
                 currentStack = queue.dequeue();
                 allowed = isAllowed(obj, currentStack[currentStack.length - 1], relation);
-                if(allowed) break;
-                else {
+
+                if(allowed) {
+                    break;
+                }
+                else if(relation === RELATION.under || relation === RELATION.above) {
                     for(let col: number = 0; col < state.stacks.length; col++) {
                         let stack:Stack = state.stacks[col];
 
@@ -240,8 +228,8 @@ module Interpreter {
      * @returns {string[]} with the objects inside the world state that match the entity
      */
     function findObjects(entity: Parser.Entity, state: WorldState, isLocation: boolean): string[] {
-        var obj: ObjectDefinition = <ObjectDefinition>entity.object;
-        var objects: string[] = [];
+        let obj: ObjectDefinition = <ObjectDefinition>entity.object;
+        let objects: string[] = [];
 
         // If we search for the floor as a location we add it.
         if (isObjectMatch(obj, state, 0, -1)) {
@@ -254,18 +242,18 @@ module Interpreter {
         }
 
         if (state.holding !== null) {
-            var holdObj: ObjectDefinition = state.objects[state.holding];
+            let holdObj: ObjectDefinition = state.objects[state.holding];
             if (objectCompare(obj, holdObj)) {
                 objects.push(state.holding);
             }
         }
 
         // we make a search through the world state to find objects that match our description
-        for (var col: number = 0; col < state.stacks.length; col++) {
-            var stack: Stack = state.stacks[col];
+        for (let col: number = 0; col < state.stacks.length; col++) {
+            let stack: Stack = state.stacks[col];
 
-            for (var row: number = 0; row < stack.length; row++) {
-                var item: string = stack[row];
+            for (let row: number = 0; row < stack.length; row++) {
+                let item: string = stack[row];
 
                 if (isObjectMatch(entity.object, state, col, row)) {
                     objects.push(item);

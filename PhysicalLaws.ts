@@ -43,7 +43,6 @@ module PhysicalLaws {
      * @returns {boolean} if it follows the physical laws or not
      */
     export function passLaws(obj: ObjectDefinition, locObj: ObjectDefinition, polarity: boolean): boolean {
-
         if (!polarity) {
             let temp: ObjectDefinition = obj;
             obj = locObj;
@@ -57,14 +56,13 @@ module PhysicalLaws {
 
         //Small objects cannot support large objects.
         if (lte(obj.size, locObj.size)) {
-
             switch (obj.form) {
                 case FORM.ball:
                     return locObj.form === FORM.box || locObj.form === FORM.floor;
                 case FORM.box:
-                    if(getSize(obj.size) === getSize(locObj.size)){
+                    if((getSize(obj.size) === getSize(locObj.size)) && (locObj.form === FORM.box)){
                         // Box of the same size cannot be supported
-                        return locObj.form !== FORM.box;
+                        return false;
                     }
                     if (getSize(obj.size) === SIZE.small) {
                         // Small boxes cannot be supported by small bricks or pyramids.

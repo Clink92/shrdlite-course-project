@@ -63,12 +63,7 @@ module Planner {
     // private functions
 
     /**
-     * The core planner function. The code here is just a template;
-     * you should rewrite this function entirely. In this template,
-     * the code produces a dummy plan which is not connected to the
-     * argument `interpretation`, but your version of the function
-     * should be such that the resulting plan depends on
-     * `interpretation`.
+     * Planner function
      *
      * 
      * @param interpretation The logical interpretation of the user's desired goal. The plan needs to be such that by executing it, the world is put into a state that satisfies this goal.
@@ -83,10 +78,7 @@ module Planner {
     function planInterpretation(interpretation : Interpreter.DNFFormula, state : WorldState) : string[] {
 
         var plan : string[] = [];
-
-
         let graph = new WorldGraph(state.objects);
-
         let stacks: Stack[] = [];
 
         // For some reason there are null objects in the stacks. Filter them out.
@@ -249,10 +241,13 @@ module Planner {
             }
             return h;
         }
-        
-        // TODO: Do a* in a try-catch. Catch the error thrown on timeout and make the slow robot say a lame excuse.
-        let result = aStarSearch(graph, startNode, goal, heuristic, 100);
-        
+
+        let result = aStarSearch(graph, startNode, goal, heuristic, 10);
+
+        if(result === null) {
+            throw "A* Couldn't find a solution  =(";
+        }
+
         return getPlan(result.actions);
     }
 

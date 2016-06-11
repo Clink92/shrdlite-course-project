@@ -45,8 +45,7 @@ class SearchResult<Node> {
 
 /**
  *
-* Note that you should not change the API (type) of this function,
-* only its body.
+* A* search algorithm
  *
  *
 * @param graph The graph on which to perform A\* search.
@@ -62,68 +61,63 @@ function aStarSearch<Node> (
     goal : (n:Node) => boolean,
     heuristics : (n:Node) => number,
     timeout : number
-) : SearchResult<Node> 
-{
-    var result : SearchResult<Node> = 
-	{
+) : SearchResult<Node> {
+    var result:SearchResult<Node> =
+    {
         path: [],
         cost: 0,
         actions: []
     };
 
-    let startTime: number = Date.now();
-    let deltaTime: number = 0;
+    let startTime:number = Date.now();
+    let deltaTime:number = 0;
 
-    var fScore : Dictionary<string, number> = new Dictionary<string, number>();
-    var gScore : Dictionary<string, number> = new Dictionary<string, number>();
-	
+    var fScore:Dictionary<string, number> = new Dictionary<string, number>();
+    var gScore:Dictionary<string, number> = new Dictionary<string, number>();
+
     // this dictionary keeps track of the best path's currently travelled
-    var cameFrom : Dictionary<string, {node: Node, action: string}>= new Dictionary<string, {node: Node, action: string}>();
+    var cameFrom:Dictionary<string, {node:Node, action:string}> = new Dictionary<string, {node:Node, action:string}>();
 
     // we send in a compare function to prioritize in a correct manner
-    var openList : PriorityQueue<Node> = new PriorityQueue<Node>(function(a : Node, b : Node)
-	{
-        var c1 : number = fScore.getValue(JSON.stringify(a)),
-            c2 : number = fScore.getValue(JSON.stringify(b));
+    var openList:PriorityQueue<Node> = new PriorityQueue<Node>(function (a:Node, b:Node) {
+        var c1:number = fScore.getValue(JSON.stringify(a)),
+            c2:number = fScore.getValue(JSON.stringify(b));
 
         // if the cost of a is less then b we prioritize it higher
-        if(c1 < c2){
+        if (c1 < c2) {
             return 1;
         }
-        else if(c1 > c2){
+        else if (c1 > c2) {
             return -1;
         }
 
         return 0;
     });
 
-	
+
     // We add these primarily for the .contains() call to work as expected
-    var frontier : Dictionary<string, Node> = new Dictionary<string, Node>();
-	var explored : Dictionary<string, Node> = new Dictionary<string, Node>();
-    
-	// Add start node
+    var frontier:Dictionary<string, Node> = new Dictionary<string, Node>();
+    var explored:Dictionary<string, Node> = new Dictionary<string, Node>();
+
+    // Add start node
     gScore.setValue(JSON.stringify(start), 0);
     fScore.setValue(JSON.stringify(start), heuristics(start));
     openList.enqueue(start);
 
-    while(!openList.isEmpty() && (deltaTime * 0.001) < timeout)
-    {
-        var current : Node = openList.dequeue();
-        let currentKey: string = JSON.stringify(current);
+    while (!openList.isEmpty() && (deltaTime * 0.001) < timeout) {
+        var current:Node = openList.dequeue();
+        let currentKey:string = JSON.stringify(current);
 
         frontier.remove(currentKey);
         explored.setValue(currentKey, current);
 
-        if(goal(current))
-		{
+        if (goal(current)) {
             // Goal found, reconstruct the path
-            let node: Node = current;
-            let key: string = JSON.stringify(node);
-            let cf: {node: Node, action: string};
+            let node:Node = current;
+            let key:string = JSON.stringify(node);
+            let cf:{node:Node, action:string};
 
-            while(cameFrom.containsKey(key))
-			{
+            while (cameFrom.containsKey(key)) {
                 cf = cameFrom.getValue(key);
                 node = cf.node;
                 key = JSON.stringify(node);
@@ -134,29 +128,27 @@ function aStarSearch<Node> (
             // Set the final path cost
             result.cost = gScore.getValue(currentKey);
 
-            break;
+            return result;
         }
 
-		// This holds a node's children
-        var edges : Edge<Node>[] = graph.outgoingEdges(current);
+        // This holds a node's children
+        var edges:Edge<Node>[] = graph.outgoingEdges(current);
 
-		// Iterate through the node's children
-        for(var i : number = 0; i < edges.length; i++)
-		{
-            var child : Node = edges[i].to;
-            let childKey: string = JSON.stringify(child);
+        // Iterate through the node's children
+        for (var i:number = 0; i < edges.length; i++) {
+            var child:Node = edges[i].to;
+            let childKey:string = JSON.stringify(child);
 
-			// There is a possibility that there's another way to this node, and if
-			// this is the case, ignore this node and continue with the next one
-            if(explored.containsKey(childKey))
-			{
+            // There is a possibility that there's another way to this node, and if
+            // this is the case, ignore this node and continue with the next one
+            if (explored.containsKey(childKey)) {
                 continue;
             }
 
-            var tempGScore : number = edges[i].cost + gScore.getValue(currentKey);
-            var tempFScore : number = tempGScore + heuristics(child);
+            var tempGScore:number = edges[i].cost + gScore.getValue(currentKey);
+            var tempFScore:number = tempGScore + heuristics(child);
 
-            if(!frontier.containsKey(childKey)){
+            if (!frontier.containsKey(childKey)) {
                 frontier.setValue(childKey, child);
 
                 openList.enqueue(child);
@@ -164,13 +156,12 @@ function aStarSearch<Node> (
                 // to make sure that it is sorted correctly
                 fScore.setValue(childKey, tempFScore);
             }
-            else if (tempGScore >= gScore.getValue(childKey))
-			{
+            else if (tempGScore >= gScore.getValue(childKey)) {
                 // if the cost of this path is more then the old one we continue to other children
                 continue;
             }
             else fScore.setValue(childKey, tempFScore);
-            
+
             cameFrom.setValue(childKey, {node: current, action: edges[i].action});
             gScore.setValue(childKey, tempGScore);
         }
@@ -178,7 +169,6 @@ function aStarSearch<Node> (
         deltaTime = Date.now() - startTime;
     }
 
-    // TODO: Throw an error if it timed out without finding a solution.
-
-    return result;
+    // Returns null if no solution was found withing the time limit
+    return null;
 }
